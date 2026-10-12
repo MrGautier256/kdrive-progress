@@ -1,0 +1,174 @@
+﻿using System.Collections.Generic;
+
+namespace KDriveProgress
+{
+    static partial class L
+    {
+        /// <summary>English (default and fallback language).</summary>
+        static Dictionary<string, string> English() => new Dictionary<string, string>
+        {
+            // Units and formats
+            ["unit.B"] = "B",
+            ["unit.KB"] = "KB",
+            ["unit.MB"] = "MB",
+            ["unit.GB"] = "GB",
+            ["fmt.percent"] = "{0:N1}%",
+            ["fmt.hours"] = "{0} h {1:00}",
+            ["fmt.dayMonth"] = "MM/dd",
+
+            // Transfer statuses
+            ["status.interrupted"] = "interrupted (kDrive restarted)",
+            ["status.cancelled"] = "cancelled",
+            ["status.http"] = "HTTP error {0}",
+            ["status.network"] = "network error",
+            ["status.lost"] = "lost track",
+            ["status.error"] = "error",
+            ["status.syncerror"] = "sync failed",
+            ["status.syncerror.cause"] = "sync failed: {0}",
+            ["cause.FileExists"] = "an item with the same name already exists",
+            ["cause.FileAccessError"] = "access denied",
+            ["cause.AccessDenied"] = "access denied",
+            ["cause.NoPermission"] = "access denied",
+            ["cause.NotFound"] = "not found",
+            ["cause.FileNotFound"] = "not found",
+            ["cause.FileLocked"] = "file locked by another application",
+            ["cause.FileTooBig"] = "file too large",
+            ["cause.NotEnoughDiskSpace"] = "not enough disk space",
+            ["cause.QuotaExceeded"] = "kDrive quota exceeded",
+            ["cause.NetworkError"] = "network error",
+
+            // Transfer details
+            ["state.starting"] = "starting",
+            ["state.finishing"] = "finalizing",
+            ["detail.chunk"] = "chunk {0}/{1}",
+            ["name.fileId"] = "kDrive file #{0}",
+            ["name.size"] = "{0} file",
+            ["name.unknown"] = "unknown file",
+            ["row.waiting"] = "waiting",
+            ["row.left"] = "{0} left",
+            ["row.stalled"] = "no progress for {0}",
+            ["tip.upload"] = "Upload",
+            ["tip.download"] = "Download",
+            ["tip.since"] = "{0} since {1}",
+            ["tip.history"] = "{0} from {1} to {2}",
+            ["menu.openLocation"] = "Open file location",
+            ["menu.copyPath"] = "Copy path",
+
+            // Log format check
+            ["health.format"] = "log lines no longer have the expected format (date [level] (thread) file:line - message)",
+            ["health.mode"] = "the startup line “Extended log activated” is missing (log mode unknown)",
+            ["health.root"] = "the sync root (“Registering sync root for folder path” or “REGISTER_PATH”) is missing",
+            ["health.requests"] = "no network request line (“Sending … request”) recognized for 5 minutes",
+            ["health.sendprogress"] = "kDrive reports finished items, but no “Send progress” line is recognized",
+            ["report.header"] = "kDrive {0} · log level {1} · mode {2} · {3}",
+            ["report.unknownVersion"] = "unknown version",
+            ["report.unknown"] = "unknown",
+            ["report.none"] = "No problem detected.",
+            ["report.missing"] = "Information missing from the log:",
+            ["report.explain"] = "A kDrive update has probably changed the content of its log. Transfers may no longer be displayed correctly until kDrive Progress is updated.",
+            ["report.diag"] = "For diagnosis: KDriveProgress.exe --replay <decompressed log> <output.txt>. This message can be copied with Ctrl+C.",
+
+            // Status bar
+            ["notice.analyzing"] = "Reading the kDrive log…",
+            ["notice.nolog"] = "No kDrive log found in %TEMP%\\kDrive-logdir.",
+            ["notice.health"] = "The kDrive{0} log no longer contains some expected information: the app needs an update.",
+            ["notice.loglevel"] = "kDrive log level: {0}. In kDrive, Settings › Debugging settings: choose “Debug”.",
+            ["notice.notrunning"] = "kDrive is not running.",
+            ["notice.pending"] = "Extended log pending: quit kDrive (right-click its icon › Quit), then start it again.",
+            ["notice.inactive"] = "Extended log off: upload progress is approximate.",
+            ["notice.inactive.declined"] = "Extended log off (you declined): upload progress is approximate.",
+            ["notice.readerror"] = "Read error: {0}",
+            ["notice.source"] = "Source: {0}",
+            ["notice.extended"] = " (extended log)",
+            ["notice.untested"] = " · kDrive {0} (untested version)",
+            ["action.details"] = "Details",
+            ["action.startkdrive"] = "Start kDrive",
+            ["action.enable"] = "Enable…",
+
+            // kDrive state
+            ["engine.stopped"] = "kDrive stopped",
+            ["engine.since"] = " for {0}",
+            ["engine.offline"] = "Network unavailable",
+            ["engine.paused"] = "Paused",
+            ["engine.scanning"] = "Scanning for changes",
+            ["engine.syncing"] = "Syncing",
+            ["engine.syncing.pass"] = "Syncing · {0} / {1}",
+            ["engine.uptodate"] = "Up to date",
+
+            // Daily totals
+            ["today.none"] = "Today: no transfers",
+            ["today"] = "Today:  ↑ {0} ({1})   ·   ↓ {2} ({3})",
+            ["files.one"] = "{0} file",
+            ["files.many"] = "{0} files",
+
+            // Main window
+            ["form.title"] = "kDrive · transfers",
+            ["header.title"] = "kDrive transfers",
+            ["empty.active"] = "No transfer in progress.",
+            ["empty.active.hidden"] = "Only small files are in progress (hidden).",
+            ["empty.history"] = "No finished transfer yet.",
+            ["history.title"] = "Recently finished",
+            ["history.clear"] = "Clear",
+            ["options"] = "Options ▾",
+            ["summary.none"] = "No transfer in progress",
+            ["summary.up.one"] = "↑ {0} upload",
+            ["summary.up.many"] = "↑ {0} uploads",
+            ["summary.down.one"] = "↓ {0} download",
+            ["summary.down.many"] = "↓ {0} downloads",
+            ["summary.hidden.one"] = "+ {0} small file",
+            ["summary.hidden.many"] = "+ {0} small files",
+
+            // Tray menu and options
+            ["menu.show"] = "Show transfers",
+            ["menu.quit"] = "Quit",
+            ["menu.notifications"] = "Notifications",
+            ["menu.notify"] = "Notify when transfers finish",
+            ["menu.allFiles"] = "For all files",
+            ["menu.filesOver"] = "Files of {0} and more",
+            ["menu.notifyErrors"] = "Also notify failures",
+            ["menu.hideSmall"] = "Hide files under 1 MB",
+            ["menu.topmost"] = "Window always on top",
+            ["menu.extended"] = "kDrive extended log…",
+            ["menu.autostart"] = "Start with Windows",
+            ["menu.logs"] = "Open the kDrive log folder",
+            ["err.autostart"] = "Cannot change the startup setting: {0}",
+            ["err.setvar"] = "Cannot set the variable: {0}",
+            ["err.nokdrive"] = "kDrive.exe was not found.",
+
+            // Tray tooltip
+            ["tray.starting"] = "kDrive Progress · starting…",
+            ["tray.notrunning"] = "kDrive Progress · kDrive is not running",
+            ["tray.nolog"] = "kDrive Progress · no kDrive log",
+            ["tray.notransfer"] = "no transfer",
+
+            // Notifications
+            ["notif.up.done"] = "Upload complete",
+            ["notif.down.done"] = "Download complete",
+            ["notif.up.failed"] = "Upload failed",
+            ["notif.down.failed"] = "Download failed",
+            ["notif.failed.many"] = "{0} transfers failed",
+            ["notif.done.many"] = "{0} transfers complete",
+            ["notif.detail"] = "{0} in {1}",
+            ["notif.more"] = "… and {0} more",
+            ["notif.relaunched.title"] = "kDrive restarted",
+            ["notif.relaunched"] = "The extended log will be active in a few seconds.",
+            ["notif.health.title"] = "kDrive Progress needs an update",
+            ["notif.health"] = "The kDrive{0} log no longer contains some expected information. Open the window for details.",
+            ["dlg.health.title"] = "kDrive Progress · log check",
+
+            // Extended log assistant
+            ["ext.title.ask"] = "Turn on kDrive's extended log?",
+            ["ext.title.active"] = "kDrive's extended log is on",
+            ["ext.body.active"] = "kDrive Progress receives detailed progress for every file. Nothing to do.",
+            ["ext.body.active.var"] = "It was turned on by the environment variable {0}=1. You can remove it below; the change applies the next time kDrive starts.",
+            ["ext.body.pending"] = "The variable {0}=1 is set, but kDrive has not restarted yet.\n\nQuit kDrive (right-click its icon › Quit), then start it again: kDrive Progress can start it for you from its window. At the next Windows startup this happens automatically.",
+            ["ext.body.ask"] = "Without the extended log, kDrive Progress sees uploads poorly: large files progress in steps and some names only appear at the end. Downloads stay accurate.\n\nAutomatically: kDrive Progress sets the variable {0}=1 for your Windows account; kDrive reads it when it starts. Nothing is changed inside kDrive. You then need to quit kDrive (right-click its icon › Quit) and start it again.\n\nYourself: in kDrive, open Settings › Debugging settings and tick “Extended Full Log”. It takes effect immediately, without a restart.\n\nEither way, kDrive writes a larger log (it compresses it and caps its log folder at 2 GB).",
+            ["ext.btn.auto"] = "Turn on automatically",
+            ["ext.btn.manual"] = "I'll do it myself",
+            ["ext.btn.never"] = "Don't ask again",
+            ["ext.btn.remove"] = "Remove the variable",
+            ["ext.btn.ok"] = "OK",
+            ["ext.done"] = "Done. Now quit kDrive (right-click its icon in the notification area › Quit).\n\nkDrive Progress will start it again automatically, with the extended log, within the next 15 minutes. After that, start kDrive yourself or wait for the next Windows startup.",
+        };
+    }
+}

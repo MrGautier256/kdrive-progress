@@ -1,0 +1,60 @@
+name: Release
+
+# Builds KDriveProgress.exe and publishes a GitHub release when a version tag is pushed:
+#   git tag v1.0.0
+#   git push origin v1.0.0
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Read version from tag
+        id: version
+        shell: pwsh
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          $version = $env:TAG.TrimStart('v')
+          if ($version -notmatch '^\d+\.\d+\.\d+(-[0-9A-Za-z.]+)?$') {
+            throw "The tag must look like v1.2.3 or v1.2.3-beta.1 (got '$env:TAG')."
+          }
+          "version=$version" >> $env:GITHUB_OUTPUT
+          "prerelease=$($version.Contains('-'))".ToLower() >> $env:GITHUB_OUTPUT
+
+      - name: Build
+        shell: pwsh
+        run: dotnet build src/KDriveProgress -c Release -nologo "-p:Version=${{ steps.version.outputs.version }}"
+
+      - name: Package
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force dist | Out-Null
+          Copy-Item src/KDriveProgress/bin/Release/net48/KDriveProgress.exe dist/
+          $hash = (Get-FileHash dist/KDriveProgress.exe -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  KDriveProgress.exe" | Out-File dist/KDriveProgress.exe.sha256 -Encoding ascii
+
+      - name: Publish release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          PRERELEASE: ${{ steps.version.outputs.prerelease }}
+        run: |
+          $flags = @('--generate-notes', '--title', "kDrive Progress $env:TAG")
+          if ($env:PRERELEASE -eq 'true') { $flags += '--prerelease' }
+          gh release create $env:TAG dist/KDriveProgress.exe dist/KDriveProgress.exe.sha256 @flags

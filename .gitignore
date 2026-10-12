@@ -1,0 +1,14 @@
+# Build output
+bin/
+obj/
+dist/
+*.user
+.vs/
+
+# Legacy console prototype, superseded by the app
+kdrive-progress.ps1
+kdrive-progress.cmd
+
+# Preliminary research notes (kept locally, not published)
+PROMPT_*.md
+RAPPORT_*.md
