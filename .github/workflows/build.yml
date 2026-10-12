@@ -1,0 +1,26 @@
+name: Build
+
+# Checks that the app compiles on every push and pull request to main (no release).
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Build
+        run: dotnet build src/KDriveProgress -c Release -nologo
