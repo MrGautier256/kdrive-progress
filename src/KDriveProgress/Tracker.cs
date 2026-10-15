@@ -8,7 +8,7 @@ namespace KDriveProgress
 {
     enum LogMode { Unknown, Extended, Debug }
 
-    enum EngineState { Unknown, UpToDate, Scanning, Syncing, Paused, Offline }
+    enum EngineState { Unknown, UpToDate, Scanning, Syncing, Paused, Offline, Stopped, Error }
 
     /// <summary>
     /// Santé de la lecture du log : après une mise à jour de kDrive, les lignes dont l'app a besoin
@@ -18,7 +18,8 @@ namespace KDriveProgress
     {
         public string KDriveVersion, LogLevel;
         public List<string> Problems = new List<string>();
-        public bool VersionTested => KDriveVersion == null || KDriveVersion.StartsWith("3.8.", StringComparison.Ordinal);
+        public bool VersionTested => KDriveVersion == null || KDriveVersion.StartsWith("3.8.", StringComparison.Ordinal)
+                                     || KDriveVersion.StartsWith("4.0.", StringComparison.Ordinal);
         public bool LogLevelOk => LogLevel == null || LogLevel == "Debug";
     }
 
@@ -27,7 +28,9 @@ namespace KDriveProgress
     {
         public EngineState State;
         public DateTime Since;          // début de l'analyse ou de la pause (default si inconnu)
-        public int PassDone, PassTotal; // éléments de la passe de synchro en cours (log étendu)
+        public int PassDone, PassTotal; // éléments de la passe de synchro en cours
+        public long BytesDone, BytesTotal;  // octets de la passe (kDrive 4)
+        public double? EtaSeconds;          // temps restant estimé par kDrive (kDrive 4)
     }
 
     /// <summary>
@@ -39,7 +42,7 @@ namespace KDriveProgress
     /// taille des fichiers temporaires de .kDrive-cache et plages hydratées des placeholders.
     /// Toutes les méthodes publiques doivent être appelées sous <see cref="Sync"/>.
     /// </summary>
-    sealed class Tracker
+    sealed partial class Tracker
     {
         public readonly object Sync = new object();
 
@@ -86,7 +89,7 @@ namespace KDriveProgress
             "Session ", "pload session", "Content-Length", "Content-Disposition", "Update finished", "fileStatusChanged",
             "xtended log", "sync root for folder", "startImpl", "REGISTER_PATH", "convertToPlaceholder",
             "Step <", "Worker Main", "NetworkError", "operations generated", "error list", "Handling ExitInfo", "Item inserted in ",
-            "version: ", "Log level", "SYNC_COMPLETEDITEM",
+            "version: ", "Log level", "SYNC_COMPLETEDITEM", "Sending message: {",
         };
 
         /// <summary>Pré-filtre rapide : l'immense majorité des lignes (vfs_win, workers…) ne nous concerne pas.</summary>
@@ -225,6 +228,7 @@ namespace KDriveProgress
             _firstLine = default;
             _roots.Clear();
             _registeredPaths.Clear();
+            ResetGui();
         }
 
         /// <summary>Après la relecture initiale du log : oublie les transferts qui n'ont plus bougé depuis longtemps.</summary>
@@ -319,6 +323,8 @@ namespace KDriveProgress
                 if (msg.IndexOf("SYNC_COMPLETEDITEM", StringComparison.Ordinal) >= 0) _completedSignals++;
                 return;
             }
+            // kDrive 4 : message JSON envoyé à l'interface officielle (source principale quand il existe)
+            if (msg.StartsWith(GuiMessagePrefix, StringComparison.Ordinal)) { ProcessGuiMessage(t, msg, stateOnly: false); return; }
 
             // Analyse du drive (des centaines de milliers de lignes au démarrage) : on ne garde que l'heure.
             if (msg.IndexOf("Item inserted in ", StringComparison.Ordinal) >= 0)
@@ -331,7 +337,8 @@ namespace KDriveProgress
 
             if (msg.StartsWith("Send progress", StringComparison.Ordinal))
             {
-                if ((m = RxSendProgress.Match(msg)).Success) { _sendProgressLines++; OnSendProgress(t, tid, m); }
+                // En kDrive 4, la même information arrive (plus complète) par les messages JSON de l'interface.
+                if ((m = RxSendProgress.Match(msg)).Success) { _sendProgressLines++; if (!_guiMessages) OnSendProgress(t, tid, m); }
                 return;
             }
             if ((m = RxSending.Match(msg)).Success) { _requestLines++; OnSending(t, tid, m.Groups[1].Value, m.Groups[2].Value, m.Groups[3].Value); return; }
@@ -474,16 +481,23 @@ namespace KDriveProgress
             var th = Th(tid);
             var cause = th.LastCause;
             th.LastCause = null;
-            // kDrive réessaie à chaque passe : une seule entrée par fichier toutes les 6 heures.
+            RecordSyncError(t, path, side == "Remote" ? Direction.Down : Direction.Up, Statuses.SyncError + (cause != null ? ":" + cause : ""));
+        }
+
+        /// <summary>Échec de synchro d'un fichier, ajouté à l'historique (une seule entrée par fichier toutes les 6 heures).</summary>
+        void RecordSyncError(DateTime t, string path, Direction dir, string status)
+        {
+            // kDrive réessaie à chaque passe : on ne répète pas l'erreur.
             if (_syncErrors.TryGetValue(path, out var when) && (t - when).TotalHours < 6) return;
             _syncErrors[path] = t;
-            var tr = ActiveByPath(path) ?? New(side == "Remote" ? Direction.Down : Direction.Up, TransferKind.Other, t);
+            var tr = ActiveByPath(path) ?? New(dir, TransferKind.Other, t);
             tr.Path = path;
-            Complete(tr, t, Statuses.SyncError + (cause != null ? ":" + cause : ""));
+            Complete(tr, t, status);
         }
 
         public EngineInfo EngineStatus(DateTime now, bool hasActive)
         {
+            if (_guiSyncStatus >= 0) return GuiEngineStatus(now, hasActive);
             var info = new EngineInfo { PassDone = _passDone, PassTotal = _passTotal };
             if (_networkDown) { info.State = EngineState.Offline; info.Since = _pausedAt; }
             else if (_paused) { info.State = EngineState.Paused; info.Since = _pausedAt; }
@@ -529,9 +543,10 @@ namespace KDriveProgress
             line = line.TrimEnd('\r');
             if (line.Length == 0) return;
             _headLines++;
-            if (!ParseLine(line, out _, out var tid, out var msg)) return;
+            if (!ParseLine(line, out var t, out var tid, out var msg)) return;
             _headParsed++;
-            ProcessConfigLine(tid, msg);
+            if (msg.StartsWith(GuiMessagePrefix, StringComparison.Ordinal)) ProcessGuiMessage(t, msg, stateOnly: true);
+            else ProcessConfigLine(tid, msg);
         }
 
         /// <summary>
@@ -550,8 +565,12 @@ namespace KDriveProgress
                 h.Problems.Add("root");
             if (kdriveRunning && h.LogLevelOk && (LastLineTime - _firstLine).TotalMinutes >= 5 && _requestLines == 0)
                 h.Problems.Add("requests");
-            if (Mode == LogMode.Extended && _completedSignals >= 5 && _sendProgressLines == 0)
+            if (!_guiMessages && Mode == LogMode.Extended && _completedSignals >= 5 && _sendProgressLines == 0)
                 h.Problems.Add("sendprogress");
+            // kDrive 4 : l'interface officielle reçoit ses messages en permanence ; s'ils disparaissent du log, l'app perd sa source principale.
+            if (kdriveRunning && _kdriveVersion != null && _kdriveVersion.StartsWith("4.", StringComparison.Ordinal)
+                && !_guiMessages && (LastLineTime - _firstLine).TotalMinutes >= 3)
+                h.Problems.Add("gui");
             return h;
         }
 

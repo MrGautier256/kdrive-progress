@@ -36,6 +36,23 @@ jobs:
           "version=$version" >> $env:GITHUB_OUTPUT
           "prerelease=$($version.Contains('-'))".ToLower() >> $env:GITHUB_OUTPUT
 
+      - name: Release notes from CHANGELOG.md
+        shell: pwsh
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          $changelog = Get-Content CHANGELOG.md -Raw
+          $pattern = "(?ms)^## \[$([regex]::Escape($env:VERSION))\][^\n]*\n(.*?)(?=^## \[|\z)"
+          $m = [regex]::Match($changelog, $pattern)
+          if (-not $m.Success -or -not $m.Groups[1].Value.Trim()) {
+            throw "CHANGELOG.md has no section for $env:VERSION. Add a '## [$env:VERSION] - date' section before tagging."
+          }
+          $notes = $m.Groups[1].Value.Trim()
+          if ($notes -notmatch '\*\*Compatible with kDrive:\*\*') {
+            throw "The $env:VERSION section of CHANGELOG.md must state kDrive compatibility ('**Compatible with kDrive:** ...')."
+          }
+          $notes | Out-File release-notes.md -Encoding utf8
+
       - name: Build
         shell: pwsh
         run: dotnet build src/KDriveProgress -c Release -nologo "-p:Version=${{ steps.version.outputs.version }}"
@@ -55,6 +72,6 @@ jobs:
           TAG: ${{ github.ref_name }}
           PRERELEASE: ${{ steps.version.outputs.prerelease }}
         run: |
-          $flags = @('--generate-notes', '--title', "kDrive Progress $env:TAG")
+          $flags = @('--notes-file', 'release-notes.md', '--title', "kDrive Progress $env:TAG")
           if ($env:PRERELEASE -eq 'true') { $flags += '--prerelease' }
           gh release create $env:TAG dist/KDriveProgress.exe dist/KDriveProgress.exe.sha256 @flags

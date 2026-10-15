@@ -99,6 +99,33 @@ namespace KDriveProgress
             }
         }
 
+        /// <summary>Position de lecture courante dans le fichier.</summary>
+        public long Position => _fs.Position;
+
+        /// <summary>Lignes complètes situées entre deux positions (lecture à part, sans déplacer la position de suivi).</summary>
+        public List<string> ScanRange(long from, long to, Func<string, bool> filter)
+        {
+            var result = new List<string>();
+            if (to <= from) return result;
+            using (var fs = new FileStream(Path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite | FileShare.Delete, 1 << 16, FileOptions.SequentialScan))
+            {
+                fs.Position = from;
+                using (var sr = new StreamReader(fs, Encoding.UTF8, false, 1 << 16))
+                {
+                    sr.ReadLine(); // première ligne probablement coupée
+                    long read = 0, span = to - from;
+                    string line;
+                    while ((line = sr.ReadLine()) != null)
+                    {
+                        read += line.Length + 1; // approximation suffisante pour s'arrêter à la limite
+                        if (read > span) break;
+                        if (filter(line)) result.Add(line);
+                    }
+                }
+            }
+            return result;
+        }
+
         /// <summary>Se place à <paramref name="backlogBytes"/> de la fin pour relire les transferts déjà en cours.</summary>
         public void SeekFromEnd(long backlogBytes)
         {

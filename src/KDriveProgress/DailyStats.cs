@@ -79,7 +79,10 @@ namespace KDriveProgress
             get
             {
                 if (UpCount == 0 && DownCount == 0) return L.T("today.none");
-                return L.T("today", Format.Size(UpBytes), Files(UpCount), Format.Size(DownBytes), Files(DownCount));
+                var parts = new List<string>();
+                if (UpCount > 0) parts.Add("↑ " + Format.Size(UpBytes) + " (" + Files(UpCount) + ")");
+                if (DownCount > 0) parts.Add("↓ " + Format.Size(DownBytes) + " (" + Files(DownCount) + ")");
+                return L.T("today", string.Join("   ·   ", parts));
             }
         }
 

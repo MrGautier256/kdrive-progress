@@ -8,6 +8,7 @@ namespace KDriveProgress
         public static string Size(double bytes)
         {
             if (bytes < 0) return "?";
+            if (bytes >= 1L << 40) return string.Format(L.Culture, "{0:N2} {1}", bytes / (1L << 40), L.T("unit.TB"));
             if (bytes >= 1L << 30) return string.Format(L.Culture, "{0:N2} {1}", bytes / (1L << 30), L.T("unit.GB"));
             if (bytes >= 1L << 20) return string.Format(L.Culture, "{0:N1} {1}", bytes / (1L << 20), L.T("unit.MB"));
             if (bytes >= 1L << 10) return string.Format(L.Culture, "{0:N0} {1}", bytes / (1L << 10), L.T("unit.KB"));

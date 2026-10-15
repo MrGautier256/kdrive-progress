@@ -9,7 +9,12 @@ namespace KDriveProgress
     {
         readonly Label _summary = new Label();
         readonly Label _today = new Label();
+        readonly Label _quota = new Label();
         readonly Label _engineState = new Label();
+        readonly Label _histTitle = new Label();
+        readonly LinkLabel _errorsLink = new LinkLabel();
+        readonly LinkLabel _clear = new LinkLabel();
+        bool _showErrors;   // la liste du bas montre les erreurs kDrive au lieu de l'historique
         readonly Label _status = new Label();
         readonly ActiveView _active = new ActiveView { Dock = DockStyle.Fill, EmptyText = L.T("empty.active") };
         readonly HistoryView _history = new HistoryView { Dock = DockStyle.Fill, EmptyText = L.T("empty.history") };
@@ -38,7 +43,7 @@ namespace KDriveProgress
             KeyPreview = true;
 
             // --- en-tête
-            var header = new Panel { Dock = DockStyle.Top, Height = 86, Padding = new Padding(14, 10, 14, 6), BackColor = Theme.Window };
+            var header = new Panel { Dock = DockStyle.Top, Height = 104, Padding = new Padding(14, 10, 14, 6), BackColor = Theme.Window };
             var titleRow = new Panel { Dock = DockStyle.Top, Height = 26, BackColor = Theme.Window };
             var title = new Label
             {
@@ -59,21 +64,38 @@ namespace KDriveProgress
             _today.Height = 18;
             _today.ForeColor = Theme.Muted;
             _today.Font = new Font("Segoe UI", 8.25f);
+            _quota.Dock = DockStyle.Top;
+            _quota.Height = 18;
+            _quota.ForeColor = Theme.Muted;
+            _quota.Font = new Font("Segoe UI", 8.25f);
+            header.Controls.Add(_quota);
             header.Controls.Add(_today);
             header.Controls.Add(_summary);
             header.Controls.Add(titleRow);
 
             // --- historique : bandeau + liste
             var histHeader = new Panel { Dock = DockStyle.Top, Height = 28, BackColor = Theme.Window, Padding = new Padding(14, 6, 14, 2) };
-            var histTitle = new Label { Text = L.T("history.title"), Dock = DockStyle.Fill, Font = new Font("Segoe UI Semibold", 9f), ForeColor = Theme.Text };
-            var clear = new LinkLabel
-            {
-                Text = L.T("history.clear"), Dock = DockStyle.Right, AutoSize = true, LinkColor = Theme.Up, ActiveLinkColor = Theme.Up,
-                LinkBehavior = LinkBehavior.HoverUnderline,
-            };
-            clear.LinkClicked += (s, e) => _clearHistory();
-            histHeader.Controls.Add(histTitle);
-            histHeader.Controls.Add(clear);
+            _histTitle.Text = L.T("history.title");
+            _histTitle.Dock = DockStyle.Fill;
+            _histTitle.Font = new Font("Segoe UI Semibold", 9f);
+            _histTitle.ForeColor = Theme.Text;
+            _clear.Text = L.T("history.clear");
+            _clear.Dock = DockStyle.Right;
+            _clear.AutoSize = true;
+            _clear.LinkColor = _clear.ActiveLinkColor = Theme.Up;
+            _clear.LinkBehavior = LinkBehavior.HoverUnderline;
+            _clear.LinkClicked += (s, e) => _clearHistory();
+            // Bascule entre l'historique et la liste des erreurs tenue par kDrive (kDrive 4)
+            _errorsLink.Dock = DockStyle.Right;
+            _errorsLink.AutoSize = true;
+            _errorsLink.Padding = new Padding(0, 0, 12, 0);
+            _errorsLink.LinkColor = _errorsLink.ActiveLinkColor = Theme.Warning;
+            _errorsLink.LinkBehavior = LinkBehavior.HoverUnderline;
+            _errorsLink.Visible = false;
+            _errorsLink.LinkClicked += (s, e) => { _showErrors = !_showErrors; _history.AutoScrollPosition = Point.Empty; ErrorsToggled?.Invoke(); };
+            histHeader.Controls.Add(_histTitle);
+            histHeader.Controls.Add(_errorsLink);
+            histHeader.Controls.Add(_clear);
 
             var split = new SplitContainer
             {
@@ -154,9 +176,31 @@ namespace KDriveProgress
             _action.Visible = s.Action != NoticeAction.None;
             if (_action.Visible && _action.Text != s.ActionText) _action.Text = s.ActionText;
             _status.ForeColor = s.Warning ? Theme.Warning : Theme.Muted;
+            if (s.UpdateAvailable && !s.Warning) _status.ForeColor = Theme.Up;
             _active.SetItems(s.Active);
-            if (s.History != null) _history.SetItems(s.History);
+
+            // Espace du kDrive (kDrive 4) : la ligne disparaît si l'information n'est pas connue
+            var quota = s.QuotaText;
+            _quota.Visible = quota != null;
+            if (quota != null) _quota.Text = quota;
+
+            // Liste du bas : historique, ou erreurs tenues par kDrive
+            if (s.KDriveErrorCount == 0) _showErrors = false;
+            _errorsLink.Visible = s.KDriveErrorCount > 0;
+            _errorsLink.Text = _showErrors ? L.T("history.title") : "⚠ " + L.T("history.errors", s.KDriveErrorCount);
+            _errorsLink.LinkColor = _errorsLink.ActiveLinkColor = _showErrors ? Theme.Up : Theme.Warning;
+            _histTitle.Text = _showErrors ? L.T("errors.title") : L.T("history.title");
+            _clear.Visible = !_showErrors;
+            _history.EmptyText = L.T(_showErrors ? "empty.errors" : "empty.history");
+            if (_showErrors) { if (s.KDriveErrors != null) _history.SetItems(s.KDriveErrors); }
+            else if (s.History != null) _history.SetItems(s.History);
         }
+
+        /// <summary>Vrai quand la liste du bas affiche les erreurs kDrive.</summary>
+        public bool ShowErrors => _showErrors;
+
+        /// <summary>L'utilisateur a basculé entre historique et erreurs : l'interface doit se rafraîchir.</summary>
+        public event Action ErrorsToggled;
 
         protected override void OnKeyDown(KeyEventArgs e)
         {

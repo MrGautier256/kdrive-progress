@@ -61,6 +61,12 @@ namespace KDriveProgress
                 var key = "cause." + cause;
                 return T("status.syncerror.cause", Table.ContainsKey(key) || Fallback.ContainsKey(key) ? T(key) : cause);
             }
+            if (status.StartsWith(Statuses.Conflict + ":", StringComparison.Ordinal))
+            {
+                var type = status.Substring(Statuses.Conflict.Length + 1);
+                var key = "conflict." + type;
+                return T("status.conflict.type", Table.ContainsKey(key) || Fallback.ContainsKey(key) ? T(key) : type);
+            }
             var k = "status." + status;
             if (Table.ContainsKey(k) || Fallback.ContainsKey(k)) return T(k);
             return status; // historique d'une ancienne version : texte déjà rédigé
@@ -78,6 +84,8 @@ namespace KDriveProgress
         public const string Lost = "lost";
         public const string Error = "error";
         public const string SyncError = "syncerror";  // syncerror:FileExists
+        public const string Conflict = "conflict";    // conflict:EditEdit
+        public const string Inconsistency = "inconsistency";
 
         public static bool IsInterrupted(string s) =>
             s == Interrupted || (s != null && s.StartsWith("interrompu", StringComparison.Ordinal));

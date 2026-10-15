@@ -248,7 +248,8 @@ namespace KDriveProgress
             var time = v.End.Date == DateTime.Today ? v.End.ToString("HH:mm") : v.End.ToString(L.T("fmt.dayMonth"));
             TextRenderer.DrawText(g, time, Small, new Rectangle(x, r.Top, D(38), r.Height), Theme.Muted, Flags);
             x += D(40);
-            TextRenderer.DrawText(g, v.Dir == Direction.Up ? "↑" : "↓", Bold, new Rectangle(x, r.Top, D(14), r.Height), Theme.DirColor(v.Dir), Flags);
+            if (!v.NoDirection)
+                TextRenderer.DrawText(g, v.Dir == Direction.Up ? "↑" : "↓", Bold, new Rectangle(x, r.Top, D(14), r.Height), Theme.DirColor(v.Dir), Flags);
             x += D(16);
 
             string detail;
@@ -268,6 +269,8 @@ namespace KDriveProgress
 
         protected override string TooltipFor(TransferView v)
         {
+            if (v.NoDirection) // erreur tenue par kDrive
+                return (v.Path ?? v.Name) + "\n" + v.End.ToString("g", L.Culture) + "\n" + L.Status(v.Status);
             var text = (v.Path ?? v.Name) + "\n" + L.T("tip.history", L.T(v.Dir == Direction.Up ? "tip.upload" : "tip.download"),
                 v.Start.ToString("g", L.Culture), v.End.ToString("T", L.Culture));
             if (v.Status != Statuses.Ok) text += "\n" + L.Status(v.Status);

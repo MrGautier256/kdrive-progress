@@ -27,7 +27,9 @@ namespace KDriveProgress
         /// <summary>Chemin de kDrive.exe : celui du processus vu en dernier, sinon celui de l'installation.</summary>
         public static string KDriveExe(string lastSeen)
         {
-            if (!string.IsNullOrEmpty(lastSeen) && File.Exists(lastSeen)) return lastSeen;
+            // kDrive 4 : ne jamais prendre le lanceur de l'interface (client\kDrive.exe) pour le moteur
+            if (!string.IsNullOrEmpty(lastSeen) && File.Exists(lastSeen)
+                && lastSeen.IndexOf(@"\client\", StringComparison.OrdinalIgnoreCase) < 0) return lastSeen;
             foreach (var hive in new[] { Registry.LocalMachine, Registry.CurrentUser })
             {
                 try

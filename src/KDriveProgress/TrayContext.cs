@@ -25,6 +25,7 @@ namespace KDriveProgress
         bool _promptDone, _dialogOpen, _quitting;
         DateTime _relaunchUntil;          // après « Activer automatiquement » : relancer kDrive dès qu'il est quitté
         string _healthNotifiedFor;
+        string _updateNotified;           // état de mise à jour de kDrive déjà notifié (par fichier de log)
 
         public TrayContext(bool startHidden)
         {
@@ -36,6 +37,7 @@ namespace KDriveProgress
             _today = DailyStats.Load(seed);
 
             _form = new MainForm(ClearHistory, BuildOptionsMenu, OnNotice) { TopMost = _settings.TopMost };
+            _form.ErrorsToggled += Refresh;
             using (var bmp = Icons.Draw(32, IconState.Idle, 0)) _form.Icon = Icons.ToIcon(bmp, out _);
 
             var menu = new ContextMenuStrip();
@@ -154,7 +156,8 @@ namespace KDriveProgress
 
         void Refresh()
         {
-            var s = ViewState.Capture(_engine, _form.Visible, _settings.MinVisibleBytes, _settings.ExtendedDeclined);
+            var s = ViewState.Capture(_engine, _form.Visible, _settings.MinVisibleBytes, _settings.ExtendedDeclined,
+                withErrors: _form.Visible && _form.ShowErrors);
             _last = s;
             bool changed = _today.Roll();
             foreach (var v in s.Finished) changed |= _today.Add(v);
@@ -164,6 +167,7 @@ namespace KDriveProgress
             Notify(s.Finished);
             CheckLogHealth(s);
             CheckExtendedLog(s);
+            CheckKDriveUpdate(s);
         }
 
         // ------------------------------------------------------------------ log étendu et santé du log
@@ -178,7 +182,8 @@ namespace KDriveProgress
                 if (ExtendedLog.StartKDrive(_engine.KDriveExe))
                     _tray.ShowBalloonTip(5000, L.T("notif.relaunched.title"), L.T("notif.relaunched"), ToolTipIcon.Info);
             }
-            if (_promptDone || !s.Ready || !s.LogFound || !s.KDriveRunning || s.Mode != LogMode.Debug) return;
+            // kDrive 4 n'a pas besoin du log étendu : ses messages à l'interface suffisent.
+            if (_promptDone || !s.Ready || !s.LogFound || !s.KDriveRunning || s.Mode != LogMode.Debug || s.GuiMessages) return;
             _promptDone = true;
             if (s.VariableSet || _settings.ExtendedDeclined) return;
             // Après le passage en cours (la fenêtre principale n'existe peut-être pas encore)
@@ -230,6 +235,16 @@ namespace KDriveProgress
         }
 
         /// <summary>Prévient une fois par fichier de log si des informations attendues ont disparu (mise à jour de kDrive).</summary>
+        /// <summary>kDrive 4 annonce ses mises à jour à son interface : on prévient une fois par état et par session.</summary>
+        void CheckKDriveUpdate(ViewState s)
+        {
+            if (!s.UpdateAvailable) return;
+            var key = s.LogName + "|" + s.UpdateState;
+            if (_updateNotified == key) return;
+            _updateNotified = key;
+            _tray.ShowBalloonTip(8000, s.UpdateText, L.T("notif.update.body"), ToolTipIcon.Info);
+        }
+
         void CheckLogHealth(ViewState s)
         {
             if (!s.Ready || s.Health == null || s.Health.Problems.Count == 0 || _healthNotifiedFor == s.LogName) return;

@@ -38,6 +38,21 @@ namespace KDriveProgress
         public LogHealth Health;
         public bool VariableSet, ExtendedDeclined;
 
+        // kDrive 4 (messages de l'interface officielle)
+        public bool GuiMessages;
+        public long QuotaUsed = -1, QuotaTotal = -1;
+        public int UpdateState = -1;
+        public int KDriveErrorCount;
+        public List<TransferView> KDriveErrors;
+
+        /// <summary>Mise à jour de kDrive disponible (2, 3) ou prête à installer (5).</summary>
+        public bool UpdateAvailable => UpdateState == 2 || UpdateState == 3 || UpdateState == 5;
+        public string UpdateText => UpdateState == 5 ? L.T("update.ready") : L.T("update.available");
+
+        public string QuotaText => QuotaUsed >= 0 && QuotaTotal > 0
+            ? L.T("quota", Format.Size(QuotaUsed), Format.Size(QuotaTotal), Format.Percent((double)QuotaUsed / QuotaTotal))
+            : null;
+
         public bool Warning;
         public NoticeAction Action;
         public string ActionText;
@@ -64,8 +79,9 @@ namespace KDriveProgress
                 Action = NoticeAction.StartKDrive; ActionText = L.T("action.startkdrive");
                 return;
             }
-            if (Mode == LogMode.Debug && VariableSet) { StatusText = L.T("notice.pending"); return; }
-            if (Mode == LogMode.Debug)
+            // En kDrive 4, les messages de l'interface remplacent le log étendu : plus besoin de le réclamer.
+            if (Mode == LogMode.Debug && VariableSet && !GuiMessages) { StatusText = L.T("notice.pending"); return; }
+            if (Mode == LogMode.Debug && !GuiMessages)
             {
                 StatusText = L.T(ExtendedDeclined ? "notice.inactive.declined" : "notice.inactive");
                 Action = NoticeAction.EnableExtended; ActionText = L.T("action.enable");
@@ -73,7 +89,9 @@ namespace KDriveProgress
             }
             if (Error != null) { StatusText = L.T("notice.readerror", Error); return; }
             Warning = false;
-            StatusText = L.T("notice.source", LogName) + (Mode == LogMode.Extended ? L.T("notice.extended") : "")
+            if (UpdateAvailable) { StatusText = UpdateText; return; }
+            StatusText = L.T("notice.source", LogName)
+                         + (GuiMessages ? L.T("notice.gui") : Mode == LogMode.Extended ? L.T("notice.extended") : "")
                          + (Health.VersionTested ? "" : L.T("notice.untested", Health.KDriveVersion));
         }
 
@@ -113,16 +131,20 @@ namespace KDriveProgress
                     case EngineState.Paused: return L.T("engine.paused") + since;
                     case EngineState.Scanning: return L.T("engine.scanning") + since;
                     case EngineState.Syncing:
-                        return Engine.PassTotal > 1 ? L.T("engine.syncing.pass", Engine.PassDone, Engine.PassTotal) : L.T("engine.syncing");
+                        return (Engine.PassTotal > 1 ? L.T("engine.syncing.pass", Engine.PassDone, Engine.PassTotal) : L.T("engine.syncing"))
+                               + (Engine.EtaSeconds > 0 ? L.T("engine.eta", Format.Duration(Engine.EtaSeconds.Value)) : "");
+                    case EngineState.Stopped: return L.T("engine.syncstopped") + since;
+                    case EngineState.Error: return L.T("engine.error") + since;
                     case EngineState.UpToDate: return L.T("engine.uptodate");
                     default: return null;
                 }
             }
         }
 
-        public bool EngineWarning => !KDriveRunning || Engine.State == EngineState.Offline || Engine.State == EngineState.Paused;
+        public bool EngineWarning => !KDriveRunning || Engine.State == EngineState.Offline || Engine.State == EngineState.Paused
+                                     || Engine.State == EngineState.Stopped || Engine.State == EngineState.Error;
 
-        public static ViewState Capture(Engine engine, bool withHistory, long minBytes, bool extendedDeclined)
+        public static ViewState Capture(Engine engine, bool withHistory, long minBytes, bool extendedDeclined, bool withErrors)
         {
             var now = DateTime.Now;
             var s = new ViewState
@@ -142,6 +164,12 @@ namespace KDriveProgress
                 s.Engine = engine.Tracker.EngineStatus(now, engine.Tracker.ActiveCount > 0);
                 s.Mode = engine.Tracker.Mode;
                 s.Health = engine.Tracker.Health(s.KDriveRunning);
+                s.GuiMessages = engine.Tracker.GuiMessages;
+                s.QuotaUsed = engine.Tracker.QuotaUsed;
+                s.QuotaTotal = engine.Tracker.QuotaTotal;
+                s.UpdateState = engine.Tracker.UpdateState;
+                s.KDriveErrorCount = engine.Tracker.KDriveErrorCount;
+                s.KDriveErrors = withErrors ? engine.Tracker.KDriveErrorViews() : null;
             }
             s.VariableSet = ExtendedLog.VariableSet;
             s.ExtendedDeclined = extendedDeclined;

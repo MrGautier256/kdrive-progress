@@ -110,6 +110,7 @@ namespace KDriveProgress
         public long Done, Total;
         public double? Fraction, Rate, EtaSeconds;
         public double? StalledSeconds;  // en cours mais sans progrès depuis plus d'une minute
+        public bool NoDirection;        // erreur kDrive sans sens connu (pas de flèche)
         public DateTime Start, End;
 
         public string Folder => Path == null ? null : System.IO.Path.GetDirectoryName(Path);

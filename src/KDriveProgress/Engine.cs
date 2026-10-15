@@ -108,8 +108,14 @@ namespace KDriveProgress
                 KDriveRunning = procs.Length > 0;
                 foreach (var p in procs)
                 {
+                    // kDrive 4 a deux kDrive.exe : le moteur et, dans client\, le lanceur de l'interface. On garde le moteur.
                     if (KDriveExe == null)
-                        try { KDriveExe = p.MainModule?.FileName; } catch (Exception) { }
+                        try
+                        {
+                            var exe = p.MainModule?.FileName;
+                            if (exe != null && exe.IndexOf(@"\client\", StringComparison.OrdinalIgnoreCase) < 0) KDriveExe = exe;
+                        }
+                        catch (Exception) { }
                     p.Dispose();
                 }
             }
@@ -153,6 +159,10 @@ namespace KDriveProgress
             if (initial)
             {
                 tail.SeekFromEnd(BacklogBytes);
+                // kDrive 4 : l'état durable (erreurs, quota, mise à jour, passe) a pu être annoncé bien avant la portion relue.
+                // On parcourt le reste du fichier en ne gardant que ces messages (quelques secondes pour un log de plusieurs centaines de Mo).
+                var before = tail.ScanRange(2 << 20, tail.Position, l => l.IndexOf("Sending message: {", StringComparison.Ordinal) >= 0);
+                lock (Tracker.Sync) foreach (var l in before) Tracker.ProcessStateLine(l);
                 var lines = tail.ReadNew(Tracker.IsInteresting);
                 lock (Tracker.Sync)
                 {
@@ -204,6 +214,9 @@ namespace KDriveProgress
                 var st = tr.EngineStatus(end, tr.ActiveCount > 0);
                 w.WriteLine("Engine state at end of log: {0} (since {1:HH:mm:ss}) · pass {2}/{3}", st.State, st.Since, st.PassDone, st.PassTotal);
                 var health = tr.Health(kdriveRunning: true);
+                w.WriteLine("kDrive 4 messages: {0} · quota {1} / {2} · update state {3} · kDrive errors {4}",
+                    tr.GuiMessages, tr.QuotaUsed, tr.QuotaTotal, tr.UpdateState, tr.KDriveErrorCount);
+                foreach (var e in tr.KDriveErrorViews()) w.WriteLine("  ! {0:HH:mm:ss} {1} | {2}", e.End, e.Status, e.Path);
                 w.WriteLine("kDrive {0} · log level {1} · log check: {2}", health.KDriveVersion ?? "?", health.LogLevel ?? "?",
                     health.Problems.Count == 0 ? "OK" : string.Join(" ; ", health.Problems.Select(p => L.T("health." + p))));
                 w.WriteLine();
