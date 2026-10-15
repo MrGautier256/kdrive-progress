@@ -5,7 +5,7 @@ using System.Linq;
 namespace KDriveProgress
 {
     /// <summary>Action proposée par le message d'état en bas de la fenêtre.</summary>
-    enum NoticeAction { None, EnableExtended, StartKDrive, HealthDetails }
+    enum NoticeAction { None, EnableExtended, StartKDrive, HealthDetails, InstallUpdate }
 
     /// <summary>Instantané de l'état, pris toutes les 500 ms par l'interface.</summary>
     sealed class ViewState
@@ -89,10 +89,26 @@ namespace KDriveProgress
             }
             if (Error != null) { StatusText = L.T("notice.readerror", Error); return; }
             Warning = false;
-            if (UpdateAvailable) { StatusText = UpdateText; return; }
+            if (UpdateAvailable) { StatusText = UpdateText; Highlight = true; return; }
             StatusText = L.T("notice.source", LogName)
                          + (GuiMessages ? L.T("notice.gui") : Mode == LogMode.Extended ? L.T("notice.extended") : "")
                          + (Health.VersionTested ? "" : L.T("notice.untested", Health.KDriveVersion));
+        }
+
+        /// <summary>Message mis en avant (bleu) plutôt qu'un avertissement : mise à jour disponible.</summary>
+        public bool Highlight;
+
+        /// <summary>
+        /// Nouvelle version de kDrive Progress : annoncée dans la barre d'état, sauf si un avertissement
+        /// plus important l'occupe déjà.
+        /// </summary>
+        public void SetAppUpdate(string version, bool installing)
+        {
+            if (version == null || Warning) return;
+            StatusText = L.T(installing ? "update.app.installing" : "update.app.available", version);
+            Action = installing ? NoticeAction.None : NoticeAction.InstallUpdate;
+            ActionText = L.T("action.install");
+            Highlight = true;
         }
 
         /// <summary>Texte détaillé des contrôles du log, copiable (Ctrl+C dans la boîte de message).</summary>

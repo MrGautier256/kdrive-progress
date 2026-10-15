@@ -25,6 +25,7 @@ Windows 10 or 11. Each [release](https://github.com/MrGautier256/kdrive-progress
 - **Windows notifications** when transfers finish (minimum size configurable) or fail, and when a kDrive update is available (kDrive 4).
 - **Extended log assistant** (kDrive 3.8): if kDrive's extended log is off, the app offers to turn it on for you or explains how to do it yourself. If you decline, the choice is remembered and a reminder stays in the window.
 - **Log format check**: if a kDrive update stops writing the information the app relies on, the app says so (window banner and notification) instead of silently showing nothing.
+- **Automatic updates** from this repository's releases (see [Updates](#updates)).
 - Optional: start with Windows, always on top, hide files under 1 MB.
 - Light or dark theme, following Windows.
 
@@ -48,8 +49,20 @@ Available from the tray menu or the **Options** link at the bottom of the window
 - **kDrive extended log…**: reopens the assistant (enable, or remove the environment variable the app set).
 - **Start with Windows**.
 - **Open the kDrive log folder**.
+- **Check for updates now**, **Check for updates automatically**, **Install updates automatically**.
 
 The app version is shown at the bottom of the menu.
+
+### Updates
+
+The app checks this repository's latest release on GitHub 30 seconds after it starts and then every 12 hours (pre-releases are ignored). When a newer version exists:
+
+- with **Install updates automatically** on (the default), it downloads `KDriveProgress.exe`, checks it against the release's SHA-256 checksum, and installs it as soon as no transfer is in progress, at the latest after 30 minutes. A notification announces the update, and another one confirms it after the restart;
+- otherwise, a notification and an **Install** button at the bottom of the window let you install it when you want.
+
+Installing replaces the executable in place: Windows lets a running program rename itself, so the app renames itself to `KDriveProgress.exe.old`, puts the new version in its place, starts it and quits; the new version deletes the `.old` file. The executable must be in a folder you can write to (for example `%LOCALAPPDATA%\Programs\kDriveProgress\`); otherwise **Install** opens the release page instead.
+
+This is the only network access the app makes: a request to the GitHub API, then the download of the release files. It sends nothing else. The checksum protects against a corrupted download; the executable is not code-signed.
 
 ## Languages
 
@@ -66,7 +79,7 @@ Transfer statuses are stored in the history as language-neutral codes, so switch
 
 ## How it works
 
-The app is **strictly read-only towards kDrive**: it never writes to kDrive's files or databases, never connects to any of its ports, and never stops its processes.
+The app is **strictly read-only towards kDrive**: it never writes to kDrive's files or databases, never connects to any of its ports, and never stops its processes. Its only network access is the update check on GitHub.
 
 | Source | What it provides |
 | --- | --- |
@@ -96,7 +109,7 @@ The kDrive engine runs a local server that broadcasts per-file progress. **Do no
 
 ### App data
 
-Stored in `%LOCALAPPDATA%\kDriveProgress\`: `history.tsv` (last 100 transfers), `settings.ini`, `today.ini` (daily totals). Files are written through a flushed temporary file with a `.bak` copy, so a power cut cannot wipe them. If "Start with Windows" is on, the app also adds a `kDriveProgress` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
+Stored in `%LOCALAPPDATA%\kDriveProgress\`: `history.tsv` (last 100 transfers), `settings.ini`, `today.ini` (daily totals), and briefly `update\` while an update is downloaded. Files are written through a flushed temporary file with a `.bak` copy, so a power cut cannot wipe them. If "Start with Windows" is on, the app also adds a `kDriveProgress` value under `HKCU\Software\Microsoft\Windows\CurrentVersion\Run`.
 
 ## Known limitations
 

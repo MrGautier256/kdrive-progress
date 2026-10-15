@@ -176,7 +176,7 @@ namespace KDriveProgress
             _action.Visible = s.Action != NoticeAction.None;
             if (_action.Visible && _action.Text != s.ActionText) _action.Text = s.ActionText;
             _status.ForeColor = s.Warning ? Theme.Warning : Theme.Muted;
-            if (s.UpdateAvailable && !s.Warning) _status.ForeColor = Theme.Up;
+            if (s.Highlight && !s.Warning) _status.ForeColor = Theme.Up;
             _active.SetItems(s.Active);
 
             // Espace du kDrive (kDrive 4) : la ligne disparaît si l'information n'est pas connue

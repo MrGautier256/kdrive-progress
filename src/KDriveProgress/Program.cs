@@ -19,9 +19,16 @@ namespace KDriveProgress
             if (args.Length >= 2 && args[0] == "--make-icon") { Icons.WriteIco(args[1]); return 0; }
             if (args.Length >= 1 && args[0] == "--quit") return QuitRunningInstance();
 
-            using (var mutex = new Mutex(true, MutexName, out bool first))
+            // --updated <ancienne version> : lancé par une mise à jour, l'ancienne instance est en train de se fermer.
+            int u = Array.IndexOf(args, "--updated");
+            string updatedFrom = u >= 0 && u + 1 < args.Length ? args[u + 1] : null;
+
+            using (var mutex = new Mutex(false, MutexName))
             {
-                if (!first)
+                bool owned;
+                try { owned = mutex.WaitOne(updatedFrom != null ? 30000 : 0); }
+                catch (AbandonedMutexException) { owned = true; }
+                if (!owned)
                 {
                     // Déjà lancée : on demande à l'instance existante d'afficher sa fenêtre.
                     try { using (var ev = EventWaitHandle.OpenExisting(ShowEventName)) ev.Set(); } catch (Exception) { }
@@ -31,12 +38,13 @@ namespace KDriveProgress
                 Application.EnableVisualStyles();
                 Application.SetCompatibleTextRenderingDefault(false);
                 Autostart.RefreshPath();
+                Updater.Cleanup();
 
                 bool hidden = args.Any(a => a.Equals("--tray", StringComparison.OrdinalIgnoreCase));
                 using (var showEvent = new EventWaitHandle(false, EventResetMode.AutoReset, ShowEventName))
                 using (var quitEvent = new EventWaitHandle(false, EventResetMode.AutoReset, QuitEventName))
                 {
-                    var context = new TrayContext(hidden);
+                    var context = new TrayContext(hidden, updatedFrom);
                     var sync = new WindowsFormsSynchronizationContext();
                     var waitShow = ThreadPool.RegisterWaitForSingleObject(showEvent,
                         (s, timedOut) => sync.Post(_ => context.ShowForm(), null), null, Timeout.Infinite, false);
@@ -46,7 +54,7 @@ namespace KDriveProgress
                     waitShow.Unregister(null);
                     waitQuit.Unregister(null);
                 }
-                GC.KeepAlive(mutex);
+                mutex.ReleaseMutex();
             }
             return 0;
         }

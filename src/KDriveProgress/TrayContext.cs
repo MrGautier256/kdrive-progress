@@ -8,7 +8,7 @@ using System.Windows.Forms;
 namespace KDriveProgress
 {
     /// <summary>Application de zone de notification : icône avec anneau de progression, infobulle, notifications, fenêtre à la demande.</summary>
-    sealed class TrayContext : ApplicationContext
+    sealed partial class TrayContext : ApplicationContext
     {
         static readonly long[] Thresholds = { 0, 10L << 20, 100L << 20, 1L << 30 };
 
@@ -27,7 +27,7 @@ namespace KDriveProgress
         string _healthNotifiedFor;
         string _updateNotified;           // état de mise à jour de kDrive déjà notifié (par fichier de log)
 
-        public TrayContext(bool startHidden)
+        public TrayContext(bool startHidden, string updatedFrom = null)
         {
             _engine = new Engine(LogTail.DefaultDirectory, new HistoryStore());
             _engine.Start();
@@ -57,6 +57,7 @@ namespace KDriveProgress
             _timer.Tick += (s, e) => Refresh();
             _timer.Start();
 
+            InitUpdates(updatedFrom);
             if (!startHidden) ShowForm();
         }
 
@@ -123,8 +124,14 @@ namespace KDriveProgress
                 try { Process.Start("explorer.exe", "\"" + LogTail.DefaultDirectory + "\""); } catch (Exception) { }
             });
             items.Add(new ToolStripSeparator());
-            var v = typeof(TrayContext).Assembly.GetName().Version;
-            items.Add(new ToolStripMenuItem("kDrive Progress " + v.ToString(3)) { Enabled = false });
+            items.Add(L.T("menu.checkUpdates"), null, (s, e) => CheckForUpdate(manual: true));
+            var autoCheck = new ToolStripMenuItem(L.T("menu.autoCheck")) { CheckOnClick = true, Checked = _settings.AutoCheckUpdates };
+            autoCheck.Click += (s, e) => { _settings.AutoCheckUpdates = autoCheck.Checked; _settings.Save(); };
+            items.Add(autoCheck);
+            var autoInstall = new ToolStripMenuItem(L.T("menu.autoInstall")) { CheckOnClick = true, Checked = _settings.AutoInstallUpdates };
+            autoInstall.Click += (s, e) => { _settings.AutoInstallUpdates = autoInstall.Checked; _settings.Save(); };
+            items.Add(autoInstall);
+            items.Add(new ToolStripMenuItem("kDrive Progress " + Updater.Current.ToString(3)) { Enabled = false });
 
             auto.Checked = Autostart.Enabled;
             // Le même réglage existe dans deux menus (icône et fenêtre) : on resynchronise à l'ouverture.
@@ -134,6 +141,9 @@ namespace KDriveProgress
                     auto.Checked = Autostart.Enabled;
                     small.Checked = _settings.HideSmall;
                     top.Checked = _settings.TopMost;
+                    autoCheck.Checked = _settings.AutoCheckUpdates;
+                    autoInstall.Checked = _settings.AutoInstallUpdates;
+                    autoInstall.Enabled = _settings.AutoCheckUpdates;
                 };
         }
 
@@ -159,6 +169,7 @@ namespace KDriveProgress
             var s = ViewState.Capture(_engine, _form.Visible, _settings.MinVisibleBytes, _settings.ExtendedDeclined,
                 withErrors: _form.Visible && _form.ShowErrors);
             _last = s;
+            s.SetAppUpdate(_appUpdate?.Version.ToString(3), _installing);
             bool changed = _today.Roll();
             foreach (var v in s.Finished) changed |= _today.Add(v);
             if (changed) _today.Save();
@@ -258,6 +269,7 @@ namespace KDriveProgress
             switch (action)
             {
                 case NoticeAction.EnableExtended: ShowExtendedDialog(); break;
+                case NoticeAction.InstallUpdate: InstallNow(); break;
                 case NoticeAction.StartKDrive:
                     if (!ExtendedLog.StartKDrive(_engine.KDriveExe))
                         MessageBox.Show(L.T("err.nokdrive"), "kDrive Progress", MessageBoxButtons.OK, MessageBoxIcon.Warning);

@@ -21,6 +21,10 @@ namespace KDriveProgress
         public bool HideSmall;
         /// <summary>L'utilisateur a refusé l'activation du log étendu : on ne le propose plus au lancement.</summary>
         public bool ExtendedDeclined;
+        /// <summary>Rechercher une nouvelle version de l'app sur GitHub (au lancement puis toutes les 12 h).</summary>
+        public bool AutoCheckUpdates = true;
+        /// <summary>Installer la nouvelle version sans demander (l'app redémarre quand aucun transfert n'est en cours).</summary>
+        public bool AutoInstallUpdates = true;
 
         public const long SmallFileBytes = 1L << 20;
         public long MinVisibleBytes => HideSmall ? SmallFileBytes : 0;
@@ -46,6 +50,8 @@ namespace KDriveProgress
                 if (values.TryGetValue("TopMost", out v) && bool.TryParse(v, out b)) s.TopMost = b;
                 if (values.TryGetValue("HideSmall", out v) && bool.TryParse(v, out b)) s.HideSmall = b;
                 if (values.TryGetValue("ExtendedDeclined", out v) && bool.TryParse(v, out b)) s.ExtendedDeclined = b;
+                if (values.TryGetValue("AutoCheckUpdates", out v) && bool.TryParse(v, out b)) s.AutoCheckUpdates = b;
+                if (values.TryGetValue("AutoInstallUpdates", out v) && bool.TryParse(v, out b)) s.AutoInstallUpdates = b;
                 if (values.TryGetValue("NotifyMinBytes", out v) && long.TryParse(v, NumberStyles.Integer, CultureInfo.InvariantCulture, out var l)) s.NotifyMinBytes = l;
             }
             catch (Exception) { /* réglages illisibles : valeurs par défaut */ }
@@ -63,6 +69,8 @@ namespace KDriveProgress
                     "TopMost=" + TopMost + "\r\n" +
                     "HideSmall=" + HideSmall + "\r\n" +
                     "ExtendedDeclined=" + ExtendedDeclined + "\r\n" +
+                    "AutoCheckUpdates=" + AutoCheckUpdates + "\r\n" +
+                    "AutoInstallUpdates=" + AutoInstallUpdates + "\r\n" +
                     "NotifyMinBytes=" + NotifyMinBytes.ToString(CultureInfo.InvariantCulture) + "\r\n");
             }
             catch (Exception) { }

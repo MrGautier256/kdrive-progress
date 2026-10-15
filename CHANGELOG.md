@@ -14,6 +14,10 @@ Each release states which kDrive desktop versions it works with. The release pip
 - Notification when a kDrive update is available or ready to install.
 - kDrive's own list of sync errors ("Errors (n)" link above the history), updated as kDrive resolves them, with causes and conflict types in plain language.
 
+### Added (all kDrive versions)
+
+- Automatic updates: the app checks GitHub for a newer release at startup and every 12 hours, downloads it, verifies its SHA-256 checksum and installs it as soon as no transfer is in progress (at the latest after 30 minutes), then restarts itself. Both checking and automatic installation can be turned off in Options; with automatic installation off, an "Install" button appears at the bottom of the window. "Check for updates now" is in the menu too.
+
 ### Changed
 
 - kDrive 4.0 is a tested version. The extended log assistant only appears with kDrive 3.8.
