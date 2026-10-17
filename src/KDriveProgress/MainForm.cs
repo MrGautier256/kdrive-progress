@@ -23,7 +23,7 @@ namespace KDriveProgress
         readonly LinkLabel _action = new LinkLabel();
         NoticeAction _currentAction;
         bool _allowClose;
-        bool _placed;
+        DateTime _autoHiddenAt;   // dernière fois que la fenêtre s'est masquée en perdant la main
 
         public MainForm(Action clearHistory, Func<ContextMenuStrip> buildOptions, Action<NoticeAction> onAction)
         {
@@ -145,14 +145,34 @@ namespace KDriveProgress
             Theme.ApplyTitleBar(Handle);
         }
 
-        /// <summary>Première ouverture : en bas à droite, près de la zone de notification.</summary>
-        public void PlaceNearTray()
+        /// <summary>
+        /// À chaque ouverture, dans le coin de la zone de notification : sur l'écran du clic sur l'icône, sinon
+        /// (démarrage, notification…) sur celui de la barre des tâches principale, où que soit la souris.
+        /// </summary>
+        /// <param name="clickedAt">Position du clic sur l'icône. Une icône recopiée sur un écran secondaire (TrayMirror)
+        /// est actionnée sans déplacer la souris : la fenêtre s'ouvre alors sur cet écran.</param>
+        public void PlaceNearTray(Point? clickedAt)
         {
-            if (_placed) return;
-            _placed = true;
-            var wa = Screen.FromPoint(Cursor.Position).WorkingArea;
-            int margin = LogicalToDeviceUnits(12);
-            Location = new Point(wa.Right - Width - margin, wa.Bottom - Height - margin);
+            var taskbar = Native.TaskbarBounds();
+            var screen = clickedAt.HasValue ? Screen.FromPoint(clickedAt.Value)
+                : taskbar.HasValue ? Screen.FromRectangle(taskbar.Value) : Screen.PrimaryScreen;
+            var wa = screen.WorkingArea;
+            // Barre des tâches en haut ou à gauche (Windows 10, même bord sur tous les écrans) :
+            // la zone de notification est alors en haut à droite ou en bas à gauche.
+            bool top = false, left = false;
+            if (taskbar is Rectangle t)
+            {
+                var b = Screen.FromRectangle(t).Bounds;
+                top = t.Width >= t.Height && t.Top <= b.Top;
+                left = t.Height > t.Width && t.Left <= b.Left;
+            }
+            // Deux passes : changer d'écran peut changer l'échelle, donc la taille de la fenêtre.
+            for (int pass = 0; pass < 2; pass++)
+            {
+                int margin = LogicalToDeviceUnits(12);
+                Location = new Point(left ? wa.Left + margin : wa.Right - Width - margin,
+                                     top ? wa.Top + margin : wa.Bottom - Height - margin);
+            }
         }
 
         public void UpdateView(ViewState s, string todayText)
@@ -201,6 +221,25 @@ namespace KDriveProgress
 
         /// <summary>L'utilisateur a basculé entre historique et erreurs : l'interface doit se rafraîchir.</summary>
         public event Action ErrorsToggled;
+
+        const int WM_ACTIVATEAPP = 0x001C;
+
+        protected override void WndProc(ref Message m)
+        {
+            base.WndProc(ref m);
+            // Une autre application prend la main : la fenêtre se masque, comme celles des autres icônes de la zone
+            // de notification. Nos propres dialogues ne comptent pas.
+            if (m.Msg == WM_ACTIVATEAPP && m.WParam == IntPtr.Zero && Visible && WindowState != FormWindowState.Minimized)
+            {
+                _autoHiddenAt = DateTime.UtcNow;
+                Hide();
+            }
+        }
+
+        /// <summary>Vrai si la fenêtre est affichée, ou vient de se masquer en perdant la main : cliquer sur l'icône
+        /// de la zone de notification fait d'abord perdre la main à la fenêtre, ce clic doit la fermer et non la rouvrir.</summary>
+        public bool OpenOrJustHidden =>
+            (Visible && WindowState != FormWindowState.Minimized) || DateTime.UtcNow - _autoHiddenAt < TimeSpan.FromMilliseconds(500);
 
         protected override void OnKeyDown(KeyEventArgs e)
         {

@@ -1,4 +1,5 @@
 using System;
+using System.Drawing;
 using System.Runtime.InteropServices;
 using Microsoft.Win32.SafeHandles;
 
@@ -35,6 +36,23 @@ namespace KDriveProgress
 
         [DllImport("user32.dll")]
         public static extern bool DestroyIcon(IntPtr handle);
+
+        [StructLayout(LayoutKind.Sequential)]
+        struct RECT { public int Left, Top, Right, Bottom; }
+
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)]
+        static extern IntPtr FindWindowW(string className, string windowName);
+
+        [DllImport("user32.dll")]
+        static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+
+        /// <summary>Rectangle de la barre des tâches principale, celle qui porte la zone de notification, ou null.</summary>
+        public static Rectangle? TaskbarBounds()
+        {
+            var h = FindWindowW("Shell_TrayWnd", null);
+            if (h == IntPtr.Zero || !GetWindowRect(h, out var r)) return null;
+            return Rectangle.FromLTRB(r.Left, r.Top, r.Right, r.Bottom);
+        }
 
         [StructLayout(LayoutKind.Sequential)]
         struct BY_HANDLE_FILE_INFORMATION

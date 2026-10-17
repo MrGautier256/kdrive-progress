@@ -26,7 +26,7 @@ Windows 10 or 11. Each [release](https://github.com/MrGautier256/kdrive-progress
 - **Extended log assistant** (kDrive 3.8): if kDrive's extended log is off, the app offers to turn it on for you or explains how to do it yourself. If you decline, the choice is remembered and a reminder stays in the window.
 - **Log format check**: if a kDrive update stops writing the information the app relies on, the app says so (window banner and notification) instead of silently showing nothing.
 - **Automatic updates** from this repository's releases (see [Updates](#updates)).
-- Optional: start with Windows, always on top, hide files under 1 MB.
+- Optional: start with Windows, hide files under 1 MB.
 - Light or dark theme, following Windows.
 
 ## Installation
@@ -37,7 +37,7 @@ Windows 10 or 11. Each [release](https://github.com/MrGautier256/kdrive-progress
 
 Keep kDrive's **Debug level** set to **Debug** (the default).
 
-Left-click the tray icon to show or hide the window, right-click for the menu. Closing the window hides it; use **Quit** in the menu to exit.
+Left-click the tray icon to show or hide the window, right-click for the menu. Like other tray windows, the window closes when you click elsewhere. Closing the window hides it; use **Quit** in the menu to exit.
 
 ### Options
 
@@ -45,7 +45,6 @@ Available from the tray menu or the **Options** link at the bottom of the window
 
 - **Notifications**: on or off; for all files or only files of 10 MB, 100 MB (default) or 1 GB and more; failures notified separately. Simultaneous completions are grouped into one notification. Nothing is notified while the window is in the foreground. Clicking a notification opens the window.
 - **Hide files under 1 MB**: lightens the lists during large syncs. Hidden transfers are still counted ("+ 12 small files") and their failures are always shown.
-- **Window always on top**.
 - **kDrive extended log…**: reopens the assistant (enable, or remove the environment variable the app set).
 - **Start with Windows**.
 - **Open the kDrive log folder**.

@@ -23,6 +23,7 @@ namespace KDriveProgress
         string _iconKey;
         ViewState _last;
         bool _promptDone, _dialogOpen, _quitting;
+        bool _openAtMouseDown;            // état de la fenêtre à l'appui sur l'icône
         DateTime _relaunchUntil;          // après « Activer automatiquement » : relancer kDrive dès qu'il est quitté
         string _healthNotifiedFor;
         string _updateNotified;           // état de mise à jour de kDrive déjà notifié (par fichier de log)
@@ -36,7 +37,7 @@ namespace KDriveProgress
             lock (_engine.Tracker.Sync) seed = _engine.Tracker.HistoryViews(Tracker.HistoryMax);
             _today = DailyStats.Load(seed);
 
-            _form = new MainForm(ClearHistory, BuildOptionsMenu, OnNotice) { TopMost = _settings.TopMost };
+            _form = new MainForm(ClearHistory, BuildOptionsMenu, OnNotice);
             _form.ErrorsToggled += Refresh;
             using (var bmp = Icons.Draw(32, IconState.Idle, 0)) _form.Icon = Icons.ToIcon(bmp, out _);
 
@@ -48,6 +49,7 @@ namespace KDriveProgress
             menu.Items.Add(L.T("menu.quit"), null, (s, e) => Quit());
 
             _tray = new NotifyIcon { Text = "kDrive Progress", ContextMenuStrip = menu };
+            _tray.MouseDown += (s, e) => { if (e.Button == MouseButtons.Left) _openAtMouseDown = _form.OpenOrJustHidden; };
             _tray.MouseClick += (s, e) => { if (e.Button == MouseButtons.Left) Toggle(); };
             _tray.BalloonTipClicked += (s, e) => ShowForm();
             UpdateTray(null);
@@ -106,9 +108,6 @@ namespace KDriveProgress
             var small = new ToolStripMenuItem(L.T("menu.hideSmall")) { CheckOnClick = true, Checked = _settings.HideSmall };
             small.Click += (s, e) => { _settings.HideSmall = small.Checked; _settings.Save(); Refresh(); };
             items.Add(small);
-            var top = new ToolStripMenuItem(L.T("menu.topmost")) { CheckOnClick = true, Checked = _settings.TopMost };
-            top.Click += (s, e) => { _settings.TopMost = top.Checked; _settings.Save(); _form.TopMost = top.Checked; };
-            items.Add(top);
 
             items.Add(L.T("menu.extended"), null, (s, e) => ShowExtendedDialog());
 
@@ -140,7 +139,6 @@ namespace KDriveProgress
                 {
                     auto.Checked = Autostart.Enabled;
                     small.Checked = _settings.HideSmall;
-                    top.Checked = _settings.TopMost;
                     autoCheck.Checked = _settings.AutoCheckUpdates;
                     autoInstall.Checked = _settings.AutoInstallUpdates;
                     autoInstall.Enabled = _settings.AutoCheckUpdates;
@@ -149,9 +147,10 @@ namespace KDriveProgress
 
         // ------------------------------------------------------------------ fenêtre
 
-        public void ShowForm()
+        /// <param name="clickedAt">Position du clic sur l'icône, si c'est lui qui ouvre la fenêtre.</param>
+        public void ShowForm(Point? clickedAt = null)
         {
-            _form.PlaceNearTray();
+            _form.PlaceNearTray(clickedAt);
             Refresh();
             _form.Show();
             if (_form.WindowState == FormWindowState.Minimized) _form.WindowState = FormWindowState.Normal;
@@ -160,8 +159,9 @@ namespace KDriveProgress
 
         void Toggle()
         {
-            if (_form.Visible && _form.WindowState != FormWindowState.Minimized) _form.Hide();
-            else ShowForm();
+            // État relevé à l'appui : entre l'appui et le clic, la fenêtre a pu se masquer en perdant la main.
+            if (_openAtMouseDown) _form.Hide();
+            else ShowForm(Cursor.Position);
         }
 
         void Refresh()

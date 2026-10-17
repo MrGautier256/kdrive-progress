@@ -15,8 +15,6 @@ namespace KDriveProgress
         public long NotifyMinBytes = 100L << 20;
         /// <summary>Notifier les transferts en échec, quelle que soit leur taille.</summary>
         public bool NotifyErrors = true;
-        /// <summary>Fenêtre toujours au premier plan.</summary>
-        public bool TopMost;
         /// <summary>Masquer les fichiers de moins de 1 Mo (listes et compteurs).</summary>
         public bool HideSmall;
         /// <summary>L'utilisateur a refusé l'activation du log étendu : on ne le propose plus au lancement.</summary>
@@ -47,7 +45,6 @@ namespace KDriveProgress
                 }
                 if (values.TryGetValue("Notify", out var v) && bool.TryParse(v, out var b)) s.Notify = b;
                 if (values.TryGetValue("NotifyErrors", out v) && bool.TryParse(v, out b)) s.NotifyErrors = b;
-                if (values.TryGetValue("TopMost", out v) && bool.TryParse(v, out b)) s.TopMost = b;
                 if (values.TryGetValue("HideSmall", out v) && bool.TryParse(v, out b)) s.HideSmall = b;
                 if (values.TryGetValue("ExtendedDeclined", out v) && bool.TryParse(v, out b)) s.ExtendedDeclined = b;
                 if (values.TryGetValue("AutoCheckUpdates", out v) && bool.TryParse(v, out b)) s.AutoCheckUpdates = b;
@@ -66,7 +63,6 @@ namespace KDriveProgress
                 SafeFile.WriteAllText(_path,
                     "Notify=" + Notify + "\r\n" +
                     "NotifyErrors=" + NotifyErrors + "\r\n" +
-                    "TopMost=" + TopMost + "\r\n" +
                     "HideSmall=" + HideSmall + "\r\n" +
                     "ExtendedDeclined=" + ExtendedDeclined + "\r\n" +
                     "AutoCheckUpdates=" + AutoCheckUpdates + "\r\n" +

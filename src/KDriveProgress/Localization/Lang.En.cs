@@ -189,7 +189,6 @@ namespace KDriveProgress
             ["menu.filesOver"] = "Files of {0} and more",
             ["menu.notifyErrors"] = "Also notify failures",
             ["menu.hideSmall"] = "Hide files under 1 MB",
-            ["menu.topmost"] = "Window always on top",
             ["menu.extended"] = "kDrive extended log…",
             ["menu.autostart"] = "Start with Windows",
             ["menu.logs"] = "Open the kDrive log folder",

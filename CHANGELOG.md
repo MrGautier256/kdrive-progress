@@ -2,6 +2,22 @@
 
 Each release states which kDrive desktop versions it works with. The release pipeline publishes the section of the pushed version as the release description, and refuses to publish if that section or its compatibility line is missing.
 
+## [2.1.0] - 2026-10-17
+
+**Compatible with kDrive:** 4.0.x and 3.8.x for Windows (tested with 4.0.0.16 and 3.8.7.1), on Windows 10 or 11.
+
+### Changed
+
+- The window now closes when you click another window, like other tray windows. A click on the tray icon while the window is open still closes it.
+
+### Removed
+
+- The **Window always on top** option, which no longer has a purpose now that the window closes as soon as another window is in front.
+
+### Fixed
+
+- With several screens, the window could open on a secondary screen and stay there: its position was chosen once, from wherever the mouse was the first time it opened. It now opens next to the notification area every time, on the screen where the tray icon was clicked (a screen with a copy of the tray icons, for example), or else on the screen of the main taskbar.
+
 ## [2.0.0] - 2026-10-15
 
 **Compatible with kDrive:** 4.0.x and 3.8.x for Windows (tested with 4.0.0.16 and 3.8.7.1), on Windows 10 or 11.
