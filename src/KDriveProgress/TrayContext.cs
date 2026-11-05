@@ -14,6 +14,7 @@ namespace KDriveProgress
 
         readonly Engine _engine;
         readonly Settings _settings = Settings.Load();
+        readonly HiddenErrors _hiddenErrors = new HiddenErrors();
         readonly DailyStats _today;
         readonly MainForm _form;
         readonly NotifyIcon _tray;
@@ -39,6 +40,7 @@ namespace KDriveProgress
 
             _form = new MainForm(ClearHistory, BuildOptionsMenu, OnNotice);
             _form.ErrorsToggled += Refresh;
+            _form.HideError += v => { _hiddenErrors.Add(v); Refresh(); };
             using (var bmp = Icons.Draw(32, IconState.Idle, 0)) _form.Icon = Icons.ToIcon(bmp, out _);
 
             var menu = new ContextMenuStrip();
@@ -97,6 +99,7 @@ namespace KDriveProgress
             {
                 enabled.Checked = _settings.Notify;
                 errors.Checked = _settings.NotifyErrors;
+                errors.Enabled = _settings.ShowFailures; // un échec masqué n'est pas notifié non plus
                 foreach (var i in sizeItems)
                 {
                     i.Checked = (long)i.Tag == _settings.NotifyMinBytes;
@@ -108,6 +111,12 @@ namespace KDriveProgress
             var small = new ToolStripMenuItem(L.T("menu.hideSmall")) { CheckOnClick = true, Checked = _settings.HideSmall };
             small.Click += (s, e) => { _settings.HideSmall = small.Checked; _settings.Save(); Refresh(); };
             items.Add(small);
+            var failures = new ToolStripMenuItem(L.T("menu.showFailures")) { CheckOnClick = true, Checked = _settings.ShowFailures };
+            failures.Click += (s, e) => { _settings.ShowFailures = failures.Checked; _settings.Save(); Refresh(); };
+            items.Add(failures);
+            var restore = new ToolStripMenuItem("");
+            restore.Click += (s, e) => { _hiddenErrors.Clear(); Refresh(); };
+            items.Add(restore);
 
             items.Add(L.T("menu.extended"), null, (s, e) => ShowExtendedDialog());
 
@@ -139,6 +148,9 @@ namespace KDriveProgress
                 {
                     auto.Checked = Autostart.Enabled;
                     small.Checked = _settings.HideSmall;
+                    failures.Checked = _settings.ShowFailures;
+                    restore.Text = L.T("menu.restoreErrors", _hiddenErrors.Count);
+                    restore.Visible = _hiddenErrors.Count > 0;
                     autoCheck.Checked = _settings.AutoCheckUpdates;
                     autoInstall.Checked = _settings.AutoInstallUpdates;
                     autoInstall.Enabled = _settings.AutoCheckUpdates;
@@ -164,10 +176,13 @@ namespace KDriveProgress
             else ShowForm(Cursor.Position);
         }
 
+        /// <summary>Tout s'affiche, sauf les échecs quand ils sont masqués et les erreurs écartées par l'utilisateur.</summary>
+        bool IsShown(TransferView v) => !Statuses.IsFailure(v.Status) || (_settings.ShowFailures && !_hiddenErrors.Contains(v));
+
         void Refresh()
         {
             var s = ViewState.Capture(_engine, _form.Visible, _settings.MinVisibleBytes, _settings.ExtendedDeclined,
-                withErrors: _form.Visible && _form.ShowErrors);
+                withErrors: _form.Visible && _form.ShowErrors, shown: IsShown);
             _last = s;
             s.SetAppUpdate(_appUpdate?.Version.ToString(3), _installing);
             bool changed = _today.Roll();
@@ -291,7 +306,7 @@ namespace KDriveProgress
 
             var ok = finished.Where(v => v.Status == "OK" && v.Total >= _settings.NotifyMinBytes).ToList();
             var failed = _settings.NotifyErrors
-                ? finished.Where(v => v.Status != "OK" && !Statuses.IsInterrupted(v.Status)).ToList()
+                ? finished.Where(v => Statuses.IsFailure(v.Status)).ToList()
                 : new List<TransferView>();
             if (ok.Count + failed.Count == 0) return;
 

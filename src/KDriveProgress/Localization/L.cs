@@ -89,5 +89,8 @@ namespace KDriveProgress
 
         public static bool IsInterrupted(string s) =>
             s == Interrupted || (s != null && s.StartsWith("interrompu", StringComparison.Ordinal));
+
+        /// <summary>Transfert terminé en échec (un redémarrage de kDrive n'en est pas un).</summary>
+        public static bool IsFailure(string s) => s != null && s != Ok && !IsInterrupted(s);
     }
 }

@@ -17,8 +17,10 @@ namespace KDriveProgress
         protected List<TransferView> Items = new List<TransferView>();
         readonly ToolTip _tip = new ToolTip { InitialDelay = 600, ReshowDelay = 200, AutoPopDelay = 15000 };
         readonly ContextMenuStrip _menu = new ContextMenuStrip();
+        readonly ToolStripItem _openItem, _copyItem, _hideItem;
+        readonly ToolStripSeparator _hideSeparator = new ToolStripSeparator();
         int _hover = -1;
-        int _menuIndex = -1;
+        TransferView _menuItem;   // la ligne du clic droit : la liste a pu bouger avant le choix dans le menu
 
         protected readonly Font Normal = new Font("Segoe UI", 9f);
         protected readonly Font Bold = new Font("Segoe UI Semibold", 9f);
@@ -32,13 +34,17 @@ namespace KDriveProgress
             ResizeRedraw = true;
             AutoScroll = true;
             BackColor = Theme.Surface;
-            _menu.Items.Add(L.T("menu.openLocation"), null, (s, e) => OpenLocation(_menuIndex));
-            _menu.Items.Add(L.T("menu.copyPath"), null, (s, e) =>
+            _openItem = _menu.Items.Add(L.T("menu.openLocation"), null, (s, e) => OpenLocation(_menuItem?.Path));
+            _copyItem = _menu.Items.Add(L.T("menu.copyPath"), null, (s, e) =>
             {
-                var p = PathAt(_menuIndex);
-                if (p != null) Clipboard.SetText(p);
+                if (_menuItem?.Path != null) Clipboard.SetText(_menuItem.Path);
             });
+            _menu.Items.Add(_hideSeparator);
+            _hideItem = _menu.Items.Add(L.T("menu.hideError"), null, (s, e) => HideError?.Invoke(_menuItem));
         }
+
+        /// <summary>Choix « Ne plus afficher cette erreur » sur une ligne en échec.</summary>
+        public event Action<TransferView> HideError;
 
         protected abstract int RowHeightLogical { get; }
         protected int RowHeight => LogicalToDeviceUnits(RowHeightLogical);
@@ -83,8 +89,6 @@ namespace KDriveProgress
             return i >= 0 && i < Items.Count ? i : -1;
         }
 
-        string PathAt(int i) => i >= 0 && i < Items.Count ? Items[i].Path : null;
-
         protected virtual string TooltipFor(TransferView v)
         {
             var text = v.Path ?? v.Name;
@@ -114,15 +118,24 @@ namespace KDriveProgress
             base.OnMouseDown(e);
             Focus(); // pour la molette
             if (e.Button != MouseButtons.Right) return;
-            _menuIndex = IndexAt(e.Location);
-            if (PathAt(_menuIndex) == null) return;
-            _menu.Show(this, e.Location);
+            int i = IndexAt(e.Location);
+            if (i < 0) return;
+            _menuItem = Items[i];
+            bool hasPath = _menuItem.Path != null, canHide = HideError != null && Statuses.IsFailure(_menuItem.Status);
+            if (!hasPath && !canHide) return;
+            _openItem.Visible = _copyItem.Visible = hasPath;
+            _hideItem.Visible = canHide;
+            _hideSeparator.Visible = hasPath && canHide;
+            // Près du bord de l'écran, le menu s'ouvre vers la gauche au lieu de partir sur l'écran voisin.
+            bool fits = PointToScreen(e.Location).X + _menu.PreferredSize.Width <= Screen.FromControl(this).WorkingArea.Right;
+            _menu.Show(this, e.Location, fits ? ToolStripDropDownDirection.BelowRight : ToolStripDropDownDirection.BelowLeft);
         }
 
         protected override void OnMouseDoubleClick(MouseEventArgs e)
         {
             base.OnMouseDoubleClick(e);
-            OpenLocation(IndexAt(e.Location));
+            int i = IndexAt(e.Location);
+            if (i >= 0) OpenLocation(Items[i].Path);
         }
 
         protected override void OnScroll(ScrollEventArgs se)
@@ -138,9 +151,8 @@ namespace KDriveProgress
         }
 
         /// <summary>Ouvre l'Explorateur sur le fichier (simple affichage : aucun accès au contenu).</summary>
-        void OpenLocation(int i)
+        void OpenLocation(string p)
         {
-            var p = PathAt(i);
             if (p == null) return;
             try
             {

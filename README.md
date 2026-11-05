@@ -8,7 +8,8 @@ The interface follows the Windows display language: French on a French Windows, 
 
 | kDrive Progress | kDrive desktop for Windows |
 | --- | --- |
-| 2.0.0 and later | 4.0.x and 3.8.x (tested with 4.0.0.16 and 3.8.7.1) |
+| 2.2.0 and later | 4.0.x and 3.8.x (tested with 4.0.2.1, 4.0.1.1 and 3.8.7.1) |
+| 2.0.0 and 2.1.0 | 4.0.0 and 3.8.x (tested with 4.0.0.16 and 3.8.7.1); with kDrive 4.0.1 and later, transfers still work but the Errors list and kDrive update notices do not |
 | 1.0.0 | 3.8.x (tested with 3.8.7.1); works with 4.0 but flags it as untested |
 
 Windows 10 or 11. Each [release](https://github.com/MrGautier256/kdrive-progress/releases) states the kDrive versions it supports; the full history is in [CHANGELOG.md](CHANGELOG.md).
@@ -19,7 +20,7 @@ Windows 10 or 11. Each [release](https://github.com/MrGautier256/kdrive-progress
 - **Compact window**: transfers in progress at the top, recently finished ones at the bottom. Double-click a row to reveal the file in Explorer.
 - **kDrive status at a glance**: up to date, scanning for changes, syncing (with the pass progress, for example "3 / 8 · 0:22 left"), paused, stopped, network unavailable.
 - **kDrive storage quota** (kDrive 4): "kDrive storage: 669.89 GB of 3.00 TB (21.8%)".
-- **Sync errors**: per-file failures in the history, with a plain-language cause ("an item with the same name already exists"), and with kDrive 4 an **Errors (n)** list that mirrors kDrive's own, updated as kDrive resolves them.
+- **Sync errors**: per-file failures in the history, with a plain-language cause ("an item with the same name already exists"), and with kDrive 4 an **Errors (n)** list that mirrors kDrive's own, updated as kDrive resolves them. An error kDrive keeps retrying takes a single row. Right-click a failed row and choose **Don't show this error again** to hide that error on that file for good.
 - **Daily totals** (uploaded and downloaded volume and file count).
 - **Stalled transfers** (no progress for over a minute) are highlighted in orange.
 - **Windows notifications** when transfers finish (minimum size configurable) or fail, and when a kDrive update is available (kDrive 4).
@@ -45,6 +46,8 @@ Available from the tray menu or the **Options** link at the bottom of the window
 
 - **Notifications**: on or off; for all files or only files of 10 MB, 100 MB (default) or 1 GB and more; failures notified separately. Simultaneous completions are grouped into one notification. Nothing is notified while the window is in the foreground. Clicking a notification opens the window.
 - **Hide files under 1 MB**: lightens the lists during large syncs. Hidden transfers are still counted ("+ 12 small files") and their failures are always shown.
+- **Show sync failures**: on by default. Turned off, failures disappear from the history and the Errors list, and are no longer notified.
+- **Show hidden errors again (n)**: brings back the errors hidden with a right-click. Only appears when there are some.
 - **kDrive extended log…**: reopens the assistant (enable, or remove the environment variable the app set).
 - **Start with Windows**.
 - **Open the kDrive log folder**.

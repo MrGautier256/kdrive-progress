@@ -2,6 +2,26 @@
 
 Each release states which kDrive desktop versions it works with. The release pipeline publishes the section of the pushed version as the release description, and refuses to publish if that section or its compatibility line is missing.
 
+## [2.2.0] - 2026-11-05
+
+**Compatible with kDrive:** 4.0.x and 3.8.x for Windows (tested with 4.0.2.1 and 4.0.1.1; 3.8.7.1 was tested with earlier releases), on Windows 10 or 11.
+
+### Added
+
+- **Show sync failures** option. Turned off, failures disappear from the history and the Errors list, and are no longer notified.
+- Right-click a failed row and choose **Don't show this error again**: that error on that file stays hidden, while a different error on the same file still appears. **Show hidden errors again (n)** in the menu brings them back.
+
+### Changed
+
+- An error kDrive keeps retrying now takes a single row in the history, with its latest time, instead of pushing real transfers out of it.
+
+### Fixed
+
+- With kDrive 4.0.1 and later, the Errors list and the notices about kDrive updates had stopped working: kDrive renumbered the messages it sends to its interface. The app now recognizes these messages by their content, so a future renumbering will not break them again.
+- When the app started after kDrive had rotated its log, it could use the wrong sync folder (`C:\Users\<you>\kDrive`), which gave wrong paths in the history, and wrongly report that it had to be updated.
+- The Options menu and the right-click menu could open on the neighbouring screen when the window was next to the screen edge.
+- Plain-language causes for the errors added by recent kDrive versions.
+
 ## [2.1.0] - 2026-10-17
 
 **Compatible with kDrive:** 4.0.x and 3.8.x for Windows (tested with 4.0.0.16 and 3.8.7.1), on Windows 10 or 11.

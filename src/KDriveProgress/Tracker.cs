@@ -132,11 +132,12 @@ namespace KDriveProgress
         readonly List<string> _registeredPaths = new List<string>();
         readonly List<string> _recentPaths = new List<string>();
         readonly Dictionary<string, DateTime> _syncErrors = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
+        static readonly Lazy<List<string>> WindowsRoots = new Lazy<List<string>>(Native.KDriveSyncRoots);
         long _seq;
 
         // Santé du log (remis à zéro à chaque nouveau fichier de log)
         string _kdriveVersion, _logLevel;
-        bool _sawModeLine;
+        bool _sawModeLine, _headIsStart;
         int _headLines, _headParsed, _interesting, _unparsed, _requestLines, _completedSignals, _sendProgressLines;
         DateTime _firstLine;
 
@@ -164,6 +165,8 @@ namespace KDriveProgress
             get
             {
                 var all = _roots.Values.Concat(_registeredPaths).Distinct(StringComparer.OrdinalIgnoreCase).ToList();
+                // Log sans en-tête (lancement après une rotation) : Windows connaît aussi le dossier synchronisé.
+                if (all.Count == 0) all.AddRange(WindowsRoots.Value);
                 if (all.Count == 0) all.Add(System.IO.Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "kDrive"));
                 return all;
             }
@@ -204,11 +207,25 @@ namespace KDriveProgress
             if (tr.Uuid != null) _sessions.Remove(tr.Uuid);
             // Éléments sans intérêt : dossiers, fichiers vides, transferts sans aucune information.
             if (status == "OK" && tr.Total <= 0 && tr.Path == null && tr.Name == null) return;
-            if (!_historyKeys.Add(tr.HistoryKey)) return; // déjà dans l'historique enregistré
+            if (!_historyKeys.Add(tr.HistoryKey) || !KeepLatestFailure(tr)) return; // déjà dans l'historique enregistré
             _history.Insert(0, tr);
             if (_history.Count > HistoryMax) _history.RemoveRange(HistoryMax, _history.Count - HistoryMax);
             HistoryDirty = true;
             if (Live && Finished.Count < 500) Finished.Add(tr);
+        }
+
+        /// <summary>
+        /// Une seule ligne par fichier et par erreur : kDrive retente à chaque passe et à chaque démarrage,
+        /// et ces répétitions ne doivent pas chasser les vrais transferts de l'historique.
+        /// Faux si l'historique contient déjà une occurrence plus récente.
+        /// </summary>
+        bool KeepLatestFailure(Transfer tr)
+        {
+            if (tr.Path == null || !Statuses.IsFailure(tr.Status)) return true;
+            var same = _history.FindAll(h => h.Status == tr.Status && string.Equals(h.Path, tr.Path, StringComparison.OrdinalIgnoreCase));
+            if (same.Any(h => h.End >= tr.End)) return false;
+            foreach (var h in same) _history.Remove(h);
+            return true;
         }
 
         /// <summary>kDrive a redémarré (nouveau fichier de log) : les transferts en cours sont interrompus.</summary>
@@ -223,7 +240,7 @@ namespace KDriveProgress
             _paused = _networkDown = false;
             _passTotal = _passDone = 0;
             _kdriveVersion = _logLevel = null;
-            _sawModeLine = false;
+            _sawModeLine = _headIsStart = false;
             _headLines = _headParsed = _interesting = _unparsed = _requestLines = _completedSignals = _sendProgressLines = 0;
             _firstLine = default;
             _roots.Clear();
@@ -250,6 +267,9 @@ namespace KDriveProgress
                 _history.Add(tr);
             }
             _history.Sort((a, b) => b.End.CompareTo(a.End));
+            // Historique d'une version précédente : ne garde que la dernière occurrence de chaque erreur.
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            _history.RemoveAll(h => h.Path != null && Statuses.IsFailure(h.Status) && !seen.Add(h.Status + "|" + h.Path));
             if (_history.Count > HistoryMax) _history.RemoveRange(HistoryMax, _history.Count - HistoryMax);
         }
 
@@ -545,6 +565,7 @@ namespace KDriveProgress
             _headLines++;
             if (!ParseLine(line, out var t, out var tid, out var msg)) return;
             _headParsed++;
+            if (msg == "Logger initialization done") _headIsStart = true;
             if (msg.StartsWith(GuiMessagePrefix, StringComparison.Ordinal)) ProcessGuiMessage(t, msg, stateOnly: true);
             else ProcessConfigLine(tid, msg);
         }
@@ -556,12 +577,13 @@ namespace KDriveProgress
         public LogHealth Health(bool kdriveRunning)
         {
             var h = new LogHealth { KDriveVersion = _kdriveVersion, LogLevel = _logLevel };
-            bool headKnown = _headLines >= 20;
-            if ((headKnown && _headParsed * 2 < _headLines) || (_interesting >= 50 && _unparsed * 2 > _interesting))
+            if ((_headLines >= 20 && _headParsed * 2 < _headLines) || (_interesting >= 50 && _unparsed * 2 > _interesting))
                 h.Problems.Add("format");
-            if (headKnown && !_sawModeLine)
+            // Après une rotation, le fichier ne commence plus au démarrage du moteur : ces lignes n'y sont pas, sans que ce soit anormal.
+            bool startKnown = _headLines >= 20 && _headIsStart;
+            if (startKnown && !_sawModeLine)
                 h.Problems.Add("mode");
-            if (headKnown && _roots.Count == 0 && _registeredPaths.Count == 0)
+            if (startKnown && _roots.Count == 0 && _registeredPaths.Count == 0)
                 h.Problems.Add("root");
             if (kdriveRunning && h.LogLevelOk && (LastLineTime - _firstLine).TotalMinutes >= 5 && _requestLines == 0)
                 h.Problems.Add("requests");
@@ -961,9 +983,10 @@ namespace KDriveProgress
 
         public int ActiveCount => _active.Count(x => x.Total != 0);
 
-        /// <summary>Historique ; les petits transferts réussis sont masqués, jamais les échecs.</summary>
-        public List<TransferView> HistoryViews(int max, long minBytes = 0) =>
-            _history.Where(x => x.Status != "OK" || x.Total < 0 || x.Total >= minBytes).Take(max).Select(x => View(x, x.End)).ToList();
+        /// <summary>Historique ; les petits transferts réussis sont masqués, jamais les échecs (sauf choix de <paramref name="shown"/>).</summary>
+        public List<TransferView> HistoryViews(int max, long minBytes = 0, Func<TransferView, bool> shown = null) =>
+            _history.Where(x => x.Status != "OK" || x.Total < 0 || x.Total >= minBytes).Select(x => View(x, x.End))
+                .Where(v => shown == null || shown(v)).Take(max).ToList();
 
         /// <summary>Transferts terminés en direct depuis le dernier appel (pour les notifications).</summary>
         public List<TransferView> DrainFinished()

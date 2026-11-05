@@ -17,6 +17,8 @@ namespace KDriveProgress
         public bool NotifyErrors = true;
         /// <summary>Masquer les fichiers de moins de 1 Mo (listes et compteurs).</summary>
         public bool HideSmall;
+        /// <summary>Afficher les échecs : historique, liste des erreurs de kDrive et notifications.</summary>
+        public bool ShowFailures = true;
         /// <summary>L'utilisateur a refusé l'activation du log étendu : on ne le propose plus au lancement.</summary>
         public bool ExtendedDeclined;
         /// <summary>Rechercher une nouvelle version de l'app sur GitHub (au lancement puis toutes les 12 h).</summary>
@@ -46,6 +48,7 @@ namespace KDriveProgress
                 if (values.TryGetValue("Notify", out var v) && bool.TryParse(v, out var b)) s.Notify = b;
                 if (values.TryGetValue("NotifyErrors", out v) && bool.TryParse(v, out b)) s.NotifyErrors = b;
                 if (values.TryGetValue("HideSmall", out v) && bool.TryParse(v, out b)) s.HideSmall = b;
+                if (values.TryGetValue("ShowFailures", out v) && bool.TryParse(v, out b)) s.ShowFailures = b;
                 if (values.TryGetValue("ExtendedDeclined", out v) && bool.TryParse(v, out b)) s.ExtendedDeclined = b;
                 if (values.TryGetValue("AutoCheckUpdates", out v) && bool.TryParse(v, out b)) s.AutoCheckUpdates = b;
                 if (values.TryGetValue("AutoInstallUpdates", out v) && bool.TryParse(v, out b)) s.AutoInstallUpdates = b;
@@ -64,6 +67,7 @@ namespace KDriveProgress
                     "Notify=" + Notify + "\r\n" +
                     "NotifyErrors=" + NotifyErrors + "\r\n" +
                     "HideSmall=" + HideSmall + "\r\n" +
+                    "ShowFailures=" + ShowFailures + "\r\n" +
                     "ExtendedDeclined=" + ExtendedDeclined + "\r\n" +
                     "AutoCheckUpdates=" + AutoCheckUpdates + "\r\n" +
                     "AutoInstallUpdates=" + AutoInstallUpdates + "\r\n" +

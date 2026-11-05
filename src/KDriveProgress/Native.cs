@@ -1,6 +1,9 @@
 using System;
+using System.Collections.Generic;
 using System.Drawing;
 using System.Runtime.InteropServices;
+using System.Security.Principal;
+using Microsoft.Win32;
 using Microsoft.Win32.SafeHandles;
 
 namespace KDriveProgress
@@ -45,6 +48,27 @@ namespace KDriveProgress
 
         [DllImport("user32.dll")]
         static extern bool GetWindowRect(IntPtr hwnd, out RECT rect);
+
+        /// <summary>Dossiers synchronisés que kDrive a déclarés à Windows pour le compte courant.</summary>
+        public static List<string> KDriveSyncRoots()
+        {
+            var roots = new List<string>();
+            try
+            {
+                var sid = WindowsIdentity.GetCurrent().User?.Value;
+                using (var manager = Registry.LocalMachine.OpenSubKey(@"SOFTWARE\Microsoft\Windows\CurrentVersion\Explorer\SyncRootManager"))
+                {
+                    if (manager == null || sid == null) return roots;
+                    foreach (var name in manager.GetSubKeyNames())
+                        using (var root = manager.OpenSubKey(name))
+                        using (var users = root?.OpenSubKey("UserSyncRoots"))
+                            if (root?.GetValue("DisplayNameResource") as string == "kDrive" && users?.GetValue(sid) is string path && path.Length > 0)
+                                roots.Add(path.TrimEnd('\\'));
+                }
+            }
+            catch (Exception) { }
+            return roots;
+        }
 
         /// <summary>Rectangle de la barre des tâches principale, celle qui porte la zone de notification, ou null.</summary>
         public static Rectangle? TaskbarBounds()

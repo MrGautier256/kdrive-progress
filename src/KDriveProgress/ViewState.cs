@@ -160,7 +160,8 @@ namespace KDriveProgress
         public bool EngineWarning => !KDriveRunning || Engine.State == EngineState.Offline || Engine.State == EngineState.Paused
                                      || Engine.State == EngineState.Stopped || Engine.State == EngineState.Error;
 
-        public static ViewState Capture(Engine engine, bool withHistory, long minBytes, bool extendedDeclined, bool withErrors)
+        public static ViewState Capture(Engine engine, bool withHistory, long minBytes, bool extendedDeclined, bool withErrors,
+            Func<TransferView, bool> shown)
         {
             var now = DateTime.Now;
             var s = new ViewState
@@ -175,8 +176,8 @@ namespace KDriveProgress
             {
                 s.Active = engine.Tracker.ActiveViews(now, minBytes);
                 s.Hidden = engine.Tracker.ActiveCount - s.Active.Count;
-                s.History = withHistory ? engine.Tracker.HistoryViews(100, minBytes) : null;
-                s.Finished = engine.Tracker.DrainFinished();
+                s.History = withHistory ? engine.Tracker.HistoryViews(100, minBytes, shown) : null;
+                s.Finished = engine.Tracker.DrainFinished().Where(shown).ToList();
                 s.Engine = engine.Tracker.EngineStatus(now, engine.Tracker.ActiveCount > 0);
                 s.Mode = engine.Tracker.Mode;
                 s.Health = engine.Tracker.Health(s.KDriveRunning);
@@ -184,8 +185,9 @@ namespace KDriveProgress
                 s.QuotaUsed = engine.Tracker.QuotaUsed;
                 s.QuotaTotal = engine.Tracker.QuotaTotal;
                 s.UpdateState = engine.Tracker.UpdateState;
-                s.KDriveErrorCount = engine.Tracker.KDriveErrorCount;
-                s.KDriveErrors = withErrors ? engine.Tracker.KDriveErrorViews() : null;
+                var errors = engine.Tracker.KDriveErrorViews().Where(shown).ToList();
+                s.KDriveErrorCount = errors.Count;
+                s.KDriveErrors = withErrors ? errors : null;
             }
             s.VariableSet = ExtendedLog.VariableSet;
             s.ExtendedDeclined = extendedDeclined;

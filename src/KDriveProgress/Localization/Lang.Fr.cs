@@ -61,6 +61,10 @@ namespace KDriveProgress
             ["cause.SystemError"] = "erreur système",
             ["cause.InvalidToken"] = "session expirée, reconnectez-vous",
             ["cause.RateLimited"] = "trop de requêtes",
+            ["cause.FileNameTooLong"] = "nom de fichier trop long",
+            ["cause.HardlinkNotSupported"] = "lien physique non pris en charge",
+            ["cause.TooManyDeleteOperations"] = "trop de suppressions à confirmer dans kDrive",
+            ["cause.SyncPaused"] = "synchro en pause",
             ["status.inconsistency"] = "nom non pris en charge (incohérence)",
             ["status.conflict.type"] = "conflit : {0}",
             ["conflict.EditDelete"] = "modifié d'un côté, supprimé de l'autre",
@@ -90,6 +94,7 @@ namespace KDriveProgress
             ["tip.history"] = "{0} du {1} au {2}",
             ["menu.openLocation"] = "Ouvrir l'emplacement du fichier",
             ["menu.copyPath"] = "Copier le chemin",
+            ["menu.hideError"] = "Ne plus afficher cette erreur",
 
             // Contrôle du log
             ["health.format"] = "les lignes du log n'ont plus le format attendu (date [niveau] (thread) fichier:ligne - message)",
@@ -189,6 +194,8 @@ namespace KDriveProgress
             ["menu.filesOver"] = "Fichiers de {0} et plus",
             ["menu.notifyErrors"] = "Notifier aussi les échecs",
             ["menu.hideSmall"] = "Masquer les fichiers de moins de 1 Mo",
+            ["menu.showFailures"] = "Afficher les échecs de synchro",
+            ["menu.restoreErrors"] = "Réafficher les erreurs masquées ({0})",
             ["menu.extended"] = "Log étendu de kDrive…",
             ["menu.autostart"] = "Démarrer avec Windows",
             ["menu.logs"] = "Ouvrir le dossier des logs kDrive",

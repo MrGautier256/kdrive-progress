@@ -61,6 +61,10 @@ namespace KDriveProgress
             ["cause.SystemError"] = "system error",
             ["cause.InvalidToken"] = "session expired, log in again",
             ["cause.RateLimited"] = "too many requests",
+            ["cause.FileNameTooLong"] = "file name too long",
+            ["cause.HardlinkNotSupported"] = "hard link not supported",
+            ["cause.TooManyDeleteOperations"] = "too many deletions to confirm in kDrive",
+            ["cause.SyncPaused"] = "sync paused",
             ["status.inconsistency"] = "name not supported (inconsistency)",
             ["status.conflict.type"] = "conflict: {0}",
             ["conflict.EditDelete"] = "edited on one side, deleted on the other",
@@ -90,6 +94,7 @@ namespace KDriveProgress
             ["tip.history"] = "{0} from {1} to {2}",
             ["menu.openLocation"] = "Open file location",
             ["menu.copyPath"] = "Copy path",
+            ["menu.hideError"] = "Don't show this error again",
 
             // Log format check
             ["health.format"] = "log lines no longer have the expected format (date [level] (thread) file:line - message)",
@@ -189,6 +194,8 @@ namespace KDriveProgress
             ["menu.filesOver"] = "Files of {0} and more",
             ["menu.notifyErrors"] = "Also notify failures",
             ["menu.hideSmall"] = "Hide files under 1 MB",
+            ["menu.showFailures"] = "Show sync failures",
+            ["menu.restoreErrors"] = "Show hidden errors again ({0})",
             ["menu.extended"] = "kDrive extended log…",
             ["menu.autostart"] = "Start with Windows",
             ["menu.logs"] = "Open the kDrive log folder",

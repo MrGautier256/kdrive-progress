@@ -85,6 +85,7 @@ namespace KDriveProgress
             _clear.LinkColor = _clear.ActiveLinkColor = Theme.Up;
             _clear.LinkBehavior = LinkBehavior.HoverUnderline;
             _clear.LinkClicked += (s, e) => _clearHistory();
+            _history.HideError += v => HideError?.Invoke(v);
             // Bascule entre l'historique et la liste des erreurs tenue par kDrive (kDrive 4)
             _errorsLink.Dock = DockStyle.Right;
             _errorsLink.AutoSize = true;
@@ -118,7 +119,8 @@ namespace KDriveProgress
                 TextAlign = ContentAlignment.MiddleRight, LinkColor = Theme.Up, ActiveLinkColor = Theme.Up,
                 LinkBehavior = LinkBehavior.HoverUnderline,
             };
-            options.LinkClicked += (s, e) => _options.Show(options, new Point(0, options.Height), ToolStripDropDownDirection.AboveRight);
+            // Vers la gauche : la fenêtre est collée au bord de l'écran, le menu partirait sinon sur l'écran voisin.
+            options.LinkClicked += (s, e) => _options.Show(options, new Point(options.Width, 0), ToolStripDropDownDirection.AboveLeft);
             _action.Dock = DockStyle.Right;
             _action.AutoSize = true;
             _action.Padding = new Padding(8, 0, 0, 0);
@@ -221,6 +223,9 @@ namespace KDriveProgress
 
         /// <summary>L'utilisateur a basculé entre historique et erreurs : l'interface doit se rafraîchir.</summary>
         public event Action ErrorsToggled;
+
+        /// <summary>L'utilisateur ne veut plus voir cette erreur.</summary>
+        public event Action<TransferView> HideError;
 
         const int WM_ACTIVATEAPP = 0x001C;
 

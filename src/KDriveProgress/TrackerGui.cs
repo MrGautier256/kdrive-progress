@@ -18,9 +18,9 @@ namespace KDriveProgress
     /// <summary>
     /// kDrive 4 : le moteur écrit dans son log (niveau INFO) chaque message JSON envoyé à l'interface officielle :
     /// « guicommserver.cpp - Sending message: { "id": …, "num": …, "params": { … }, "type": … } to: … ».
-    /// On y lit, sans jamais se connecter à kDrive, la progression par fichier (num 17), la passe en cours (16),
-    /// le quota (9), l'état de mise à jour (23, 70), les erreurs officielles (27, 28, 29, 34),
-    /// les dossiers synchronisés (11). Valeurs des énumérations : kDrive w-4.0.0.16, src/libcommon/utility/cstypes.h.
+    /// On y lit, sans jamais se connecter à kDrive, la progression par fichier, la passe en cours, le quota,
+    /// l'état de mise à jour, les erreurs officielles et les dossiers synchronisés.
+    /// Valeurs des énumérations : kDrive 4.1.0, src/libcommon/utility/cstypes.h (ajouts en fin de liste uniquement depuis 4.0.0).
     /// </summary>
     sealed partial class Tracker
     {
@@ -40,14 +40,14 @@ namespace KDriveProgress
             "OperationCanceled", "ShareLinkAlreadyExists", "InvalidArgument", "InvalidDestination", "DriveAsleep", "DriveWakingUp",
             "Http5xx", "NotEnoughINotifyWatches", "FileOrDirectoryCorrupted", "TmpDirAccessError", "UpdateTreeIntegrityCheckFailed",
             "MissingReplyData", "BlackListPropagationError", "FileSystemNotSupported", "SyncDeletionFailed", "InvalidLinkTarget",
-            "MoveThroughSymlink",
+            "MoveThroughSymlink", "FileNameTooLong", "HardlinkNotSupported",
         };
 
         static readonly string[] ExitCodes =
         {
             "Ok", "Unknown", "NetworkError", "InvalidToken", "DataError", "DbError", "BackError", "SystemError", "FatalError",
             "LogicError", "TokenRefreshed", "RateLimited", "InvalidSync", "InvalidOperation", "OperationCanceled",
-            "UpdateRequired", "LogUploadFailed", "UpdateFailed",
+            "UpdateRequired", "LogUploadFailed", "UpdateFailed", "TooManyDeleteOperations", "SyncPaused",
         };
 
         static readonly string[] ConflictTypes =
@@ -109,37 +109,35 @@ namespace KDriveProgress
             _guiMessages = true;
             var p = Obj(root, "params");
             if (p == null) return;
-            switch (Num(root, "num"))
+            // Chaque message se reconnaît à son contenu, pas à son numéro : kDrive renumérote ses messages d'une version
+            // à l'autre (tout s'est décalé de 1 en 4.0.1), et demandes et signaux ont chacun leur propre numérotation.
+            object list;
+            if (p.ContainsKey("itemInfo")) { if (!stateOnly) OnGuiItem(t, p); }
+            else if (p.ContainsKey("SyncProgress")) OnGuiProgress(t, p);
+            else if (p.ContainsKey("driveInfo")) OnDriveInfo(Obj(p, "driveInfo"));
+            else if (p.ContainsKey("updateState")) _updateState = (int)Num(p, "updateState");
+            else if (p.ContainsKey("errorInfo")) AddKDriveError(Obj(p, "errorInfo"));
+            else if (p.ContainsKey("errorDbId")) _kdErrors.Remove(Num(p, "errorDbId"));
+            else if (p.TryGetValue("driveInfoList", out list))
             {
-                case 17: if (!stateOnly) OnGuiItem(t, p); break;
-                case 16: OnGuiProgress(t, p); break;
-                case 9: OnDriveInfo(Obj(p, "driveInfo")); break;
-                case 7:
-                    if (p.TryGetValue("driveInfoList", out var list) && list is object[] drives && drives.Length > 0)
-                        OnDriveInfo(drives[0] as Dictionary<string, object>);
-                    break;
-                case 11:
-                    if (p.TryGetValue("syncInfoList", out var syncs) && syncs is object[] arr)
-                        foreach (var s in arr.OfType<Dictionary<string, object>>())
-                        {
-                            var local = B64(s, "localPath");
-                            if (!string.IsNullOrEmpty(local)) _roots[Num(s, "dbId").ToString(CultureInfo.InvariantCulture)] = local.Replace('/', '\\').TrimEnd('\\');
-                        }
-                    break;
-                case 23:
-                case 70:
-                    if (p.ContainsKey("updateState")) _updateState = (int)Num(p, "updateState");
-                    break;
-                case 27: AddKDriveError(Obj(p, "errorInfo")); break;
-                case 28: _kdErrors.Remove(Num(p, "errorDbId")); break;
-                case 29: _kdErrors.Clear(); break;
-                case 34:
-                    if (p.TryGetValue("errorInfoList", out var errs) && errs is object[] errArr)
+                if (list is object[] drives && drives.Length > 0) OnDriveInfo(drives[0] as Dictionary<string, object>);
+            }
+            else if (p.TryGetValue("syncInfoList", out list))
+            {
+                if (list is object[] syncs)
+                    foreach (var s in syncs.OfType<Dictionary<string, object>>())
                     {
-                        _kdErrors.Clear();
-                        foreach (var e in errArr.OfType<Dictionary<string, object>>()) AddKDriveError(e);
+                        var local = B64(s, "localPath");
+                        if (!string.IsNullOrEmpty(local)) _roots[Num(s, "dbId").ToString(CultureInfo.InvariantCulture)] = local.Replace('/', '\\').TrimEnd('\\');
                     }
-                    break;
+            }
+            else if (p.TryGetValue("errorInfoList", out list))
+            {
+                if (list is object[] errors)
+                {
+                    _kdErrors.Clear();
+                    foreach (var e in errors.OfType<Dictionary<string, object>>()) AddKDriveError(e);
+                }
             }
         }
 
